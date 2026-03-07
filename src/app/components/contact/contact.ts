@@ -1,23 +1,32 @@
 // contact/contact.component.ts
 import { Component, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { CommonModule }             from '@angular/common';
+import { FormsModule }              from '@angular/forms';
+import { HttpClient }               from '@angular/common/http';
+import { environment }              from '../../../environments/environments';
 
 @Component({
-  selector: 'app-contact',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  selector:    'app-contact',
+  standalone:  true,
+  imports:     [CommonModule, FormsModule],
   templateUrl: './contact.html',
-  styleUrl: './contact.css'
+  styleUrl:    './contact.css'
 })
 export class Contact implements AfterViewInit {
-  name    = '';
-  email   = '';
-  subject = '';
-  message = '';
-  sending   = false;
-  submitted = false;
+
+  // Form fields
+  trckngKey = '';   // Tracking Key — sent uppercase
+  name      = '';
+  phone     = '';
+  email     = '';
+
+  // UI state
+  sending           = false;
+  submitted         = false;
+  showDispatchPopup = false;
+  errorMsg          = '';
+
+  constructor(private http: HttpClient) {}
 
   ngAfterViewInit(): void {
     const observer = new IntersectionObserver((entries) => {
@@ -28,32 +37,63 @@ export class Contact implements AfterViewInit {
         }
       });
     }, { threshold: 0.1 });
-
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   }
 
   onSubmit(): void {
     if (this.sending) return;
-    this.sending = true;
+    this.sending  = true;
+    this.errorMsg = '';
 
-    // Simulate API call — replace with real service later
-    setTimeout(() => {
-      console.log('Contact form:', {
-        name:    this.name,
-        email:   this.email,
-        subject: this.subject,
-        message: this.message
+    const payload = {
+      trckngKey: this.trckngKey.trim().toUpperCase(),
+      name:      this.name.trim(),
+      email:     this.email.trim(),
+    };
+
+    this.http
+      .post(`${environment.apiUrl}/order/cancel-order`, payload, { responseType: 'text' })
+      .subscribe({
+        next: () => {
+          this.sending   = false;
+          this.submitted = true;
+        },
+        error: (err) => {
+          this.sending = false;
+          const status  = err?.status;
+          const message = (err?.error?.message ?? err?.error ?? '').toString().toLowerCase();
+
+          // Order already dispatched — show popup
+          if (status === 400 && (
+            message.includes('dispatch') ||
+            message.includes('shipped')  ||
+            message.includes('cannot cancel')
+          )) {
+            this.showDispatchPopup = true;
+            return;
+          }
+
+          // Wrong details / not found
+          if (status === 404 || status === 400) {
+            this.errorMsg = 'Order not found. Please check your Tracking Key, Name, and Email — all details must match exactly.';
+            return;
+          }
+
+          this.errorMsg = 'Something went wrong. Please try again in a moment.';
+        }
       });
-      this.sending   = false;
-      this.submitted = true;
-    }, 1400);
   }
 
+  closeDispatchPopup(): void { this.showDispatchPopup = false; }
+
   resetForm(): void {
-    this.name      = '';
-    this.email     = '';
-    this.subject   = '';
-    this.message   = '';
-    this.submitted = false;
+    this.trckngKey        = '';
+    this.name             = '';
+    this.phone            = '';
+    this.email            = '';
+    this.sending          = false;
+    this.submitted        = false;
+    this.showDispatchPopup = false;
+    this.errorMsg         = '';
   }
 }

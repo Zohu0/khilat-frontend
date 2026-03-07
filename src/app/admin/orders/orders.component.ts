@@ -14,6 +14,7 @@ export interface OrderSummaryDto {
   paymentStatus: string;
   orderStatus:   string;
   createdAt:     string;
+  trckngKey?:    string;
 }
 
 interface PageResponse<T> {

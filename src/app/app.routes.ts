@@ -114,6 +114,20 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'cancelled',
+        loadComponent: () =>
+          import('./admin/cancelled/cancelled-orders/cancelled-orders.component').then(
+            (m) => m.CancelledOrdersComponent,
+          ),
+      },
+      {
+        path: 'cancelled/:id',
+        loadComponent: () =>
+          import('./admin/cancelled/cancelled-order-detail/cancelled-order-detail.component').then(
+            (m) => m.CancelledOrderDetailComponent,
+          ),
+      },
+      {
         path: 'categories',
         loadComponent: () =>
           import('./admin/categories/categories.component').then((m) => m.CategoriesComponent),

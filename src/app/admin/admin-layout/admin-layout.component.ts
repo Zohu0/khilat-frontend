@@ -43,6 +43,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     { id: 'products', label: 'Products', route: '/admin/products' },
     { id: 'orders', label: 'Orders', route: '/admin/orders' },
      { id: 'dispatched', label: 'Dispatched', route: '/admin/dispatched' },
+     { id: 'cancelled',  label: 'Cancelled',  route: '/admin/cancelled'  },
     { id: 'categories', label: 'Categories', route: '/admin/categories' },
     { id: 'logout', label: 'Logout', action: 'logout' },
   ];
