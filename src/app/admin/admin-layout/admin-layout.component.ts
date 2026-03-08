@@ -20,32 +20,29 @@ interface MenuItem {
   styleUrl: './admin-layout.component.css',
 })
 export class AdminLayoutComponent implements OnInit, OnDestroy {
-  // ── Sidebar state ─────────────────────────────
-  sidebarCollapsed = false;
+  sidebarCollapsed  = false;
   mobileSidebarOpen = false;
 
-  // ── Admin info ────────────────────────────────
-  adminEmail = localStorage.getItem('admin_email') || 'admin@khilatkurti.com';
+  adminEmail    = localStorage.getItem('admin_email') || 'admin@khilatkurti.com';
   adminInitials = this.getInitials(this.adminEmail);
 
-  // ── Page title ────────────────────────────────
   currentPageTitle = 'Dashboard';
   today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    day:     'numeric',
+    month:   'long',
+    year:    'numeric',
   });
 
-  // ── Menu — id field se HTML mein SVG icon match hoga ──
   menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', route: '/admin/dashboard' },
-    { id: 'products', label: 'Products', route: '/admin/products' },
-    { id: 'orders', label: 'Orders', route: '/admin/orders' },
-     { id: 'dispatched', label: 'Dispatched', route: '/admin/dispatched' },
-     { id: 'cancelled',  label: 'Cancelled',  route: '/admin/cancelled'  },
+    { id: 'dashboard',  label: 'Dashboard',  route: '/admin/dashboard'  },
+    { id: 'products',   label: 'Products',   route: '/admin/products'   },
+    { id: 'orders',     label: 'Orders',     route: '/admin/orders'     },
+    { id: 'dispatched', label: 'Dispatched', route: '/admin/dispatched' },
+    { id: 'delivered',  label: 'Delivered',  route: '/admin/delivered'  },
+    { id: 'refunded',   label: 'Refunded',   route: '/admin/cancelled'  },
     { id: 'categories', label: 'Categories', route: '/admin/categories' },
-    { id: 'logout', label: 'Logout', action: 'logout' },
+    { id: 'logout',     label: 'Logout',     action: 'logout'           },
   ];
 
   private routerSub!: Subscription;
@@ -56,43 +53,27 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe(() => this.updatePageTitle());
-
     this.updatePageTitle();
   }
 
-  ngOnDestroy(): void {
-    this.routerSub?.unsubscribe();
-  }
+  ngOnDestroy(): void { this.routerSub?.unsubscribe(); }
 
-  // ── Sidebar toggle (desktop collapse) ──────────
-  toggleSidebar(): void {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
-  }
+  toggleSidebar():       void { this.sidebarCollapsed  = !this.sidebarCollapsed; }
+  toggleMobileSidebar(): void { this.mobileSidebarOpen = !this.mobileSidebarOpen; }
+  closeMobileSidebar():  void { this.mobileSidebarOpen = false; }
 
-  // ── Mobile sidebar ─────────────────────────────
-  toggleMobileSidebar(): void {
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;
-  }
-
-  closeMobileSidebar(): void {
-    this.mobileSidebarOpen = false;
-  }
-
-  // ── Logout ────────────────────────────────────
   logout(): void {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_email');
     this.router.navigate(['/admin/login']);
   }
 
-  // ── Page title from URL ───────────────────────
   private updatePageTitle(): void {
-    const url = this.router.url;
-    const match = this.menuItems.find((item) => item.route && url.startsWith(item.route));
+    const url   = this.router.url;
+    const match = this.menuItems.find(item => item.route && url.startsWith(item.route));
     this.currentPageTitle = match?.label || 'Admin Panel';
   }
 
-  // ── Admin initials from email ─────────────────
   private getInitials(email: string): string {
     const name = email.split('@')[0];
     return name.substring(0, 2).toUpperCase();

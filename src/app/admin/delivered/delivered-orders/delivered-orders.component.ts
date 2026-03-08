@@ -1,4 +1,4 @@
-// admin/orders/orders.component.ts
+// src/app/admin/delivered/delivered-orders/delivered-orders.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule }                 from '@angular/common';
 import { FormsModule }                  from '@angular/forms';
@@ -6,19 +6,19 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router }                       from '@angular/router';
 import { Subject }                      from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import { environment }                  from '../../../environments/environments';
+import { environment }                  from '../../../../environments/environments';
 
 export interface OrderSummaryDto {
-  orderId:          number;
-  name:             string;
-  phone:            number | null;
-  amount:           number;
-  paymentStatus:    string;
-  orderStatus:      string;
-  email?:           string | null;
-  trckngKey?:       string;
-  dtOfOps?:         number;
-  updatedDtOfOps?:  number;
+  orderId:         number;
+  name:            string;
+  phone:           number | null;
+  amount:          number;
+  paymentStatus:   string;
+  orderStatus:     string;
+  email:           string | null;
+  trckngKey:       string | null;
+  dtOfOps?:        number;
+  updatedDtOfOps?: number;
 }
 
 interface PageResponse<T> {
@@ -30,27 +30,23 @@ interface PageResponse<T> {
 }
 
 @Component({
-  selector:     'app-admin-orders',
-  standalone:   true,
-  imports:      [CommonModule, FormsModule],
-  templateUrl:  './orders.component.html',
-  styleUrl:     './orders.component.css'
+  selector:    'app-delivered-orders',
+  standalone:  true,
+  imports:     [CommonModule, FormsModule],
+  templateUrl: './delivered-orders.component.html',
+  styleUrl:    './delivered-orders.component.css'
 })
-export class AdminOrdersComponent implements OnInit, OnDestroy {
+export class DeliveredOrdersComponent implements OnInit, OnDestroy {
 
-  allOrders:      OrderSummaryDto[] = [];
-  filteredOrders: OrderSummaryDto[] = [];
-  pagedOrders:    OrderSummaryDto[] = [];
+  allOrders:   OrderSummaryDto[] = [];
+  pagedOrders: OrderSummaryDto[] = [];
 
   loading       = true;
   searchLoading = false;
   error         = '';
 
   searchQuery  = '';
-  dateFrom     = '';
   isSearchMode = false;
-
-  pendingCount = 0;
 
   sortField: 'orderId' | 'amount' | 'dtOfOps' = 'dtOfOps';
   sortDir:   'asc' | 'desc'                    = 'desc';
@@ -70,7 +66,6 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
-    // ✅ Sirf ek hi call — loadOrders() hi pendingCount bhi set karta hai
     this.loadOrders();
 
     this.searchSubject.pipe(
@@ -89,25 +84,17 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void { this.searchSubject.complete(); }
 
-  // ── Normal orders list ────────────────────────────────────────
+  // ── Normal list ──────────────────────────────────────────────
 
   loadOrders(): void {
     this.loading      = true;
     this.isSearchMode = false;
     this.error        = '';
 
-    let params = new HttpParams()
-      .set('status', 'PENDING')
+    const params = new HttpParams()
+      .set('status', 'DELIVERED')
       .set('page', String(this.currentPage))
       .set('size', String(this.pageSize));
-
-    if (this.dateFrom) {
-      const d = new Date(this.dateFrom);
-      const formatted = d.getFullYear()
-        + String(d.getMonth() + 1).padStart(2, '0')
-        + String(d.getDate()).padStart(2, '0');
-      params = params.set('date', formatted);
-    }
 
     this.http.get<PageResponse<OrderSummaryDto>>(
       `${environment.apiUrl}/admin/orders`,
@@ -119,22 +106,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.totalPages    = res.totalPages;
         this.startIndex    = this.currentPage * this.pageSize;
         this.endIndex      = this.startIndex + res.content.length;
-
-        // ✅ Same response se pendingCount set — alag API call nahi chahiye
-        this.pendingCount  = res.totalElements;
-
         this.applySort();
         this.buildPageNumbers();
         this.loading = false;
       },
       error: (err) => {
-        this.error   = err.error?.message || 'Failed to load orders.';
+        this.error   = err.error?.message || 'Failed to load delivered orders.';
         this.loading = false;
       }
     });
   }
 
-  // ── Search — GET /admin/orders?trckngKey=...&status=PENDING ───
+  // ── Search API — GET /admin/orders?trckngKey=...&status=DELIVERED ──
 
   private searchOrders(keyword: string): void {
     this.searchLoading = true;
@@ -142,7 +125,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
     const params = new HttpParams()
       .set('trckngKey', keyword)
-      .set('status', 'PENDING')
+      .set('status', 'DELIVERED')
       .set('page', String(this.currentPage))
       .set('size', String(this.pageSize));
 
@@ -177,7 +160,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.loadOrders();
   }
 
-  // ── Sort ──────────────────────────────────────────────────────
+  // ── Sort ─────────────────────────────────────────────────────
 
   applySort(): void {
     const list = [...this.allOrders];
@@ -190,8 +173,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         ? (va < vb ? -1 : va > vb ? 1 : 0)
         : (va > vb ? -1 : va < vb ? 1 : 0);
     });
-    this.filteredOrders = list;
-    this.pagedOrders    = list;
+    this.pagedOrders = list;
   }
 
   sort(field: 'orderId' | 'amount' | 'dtOfOps'): void {
@@ -200,17 +182,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.applySort();
   }
 
-  clearFilters(): void {
-    this.searchQuery  = '';
-    this.dateFrom     = '';
-    this.isSearchMode = false;
-    this.currentPage  = 0;
-    this.loadOrders();
-  }
+  // ── Date helper ──────────────────────────────────────────────
 
-  // ── Date helpers ──────────────────────────────────────────────
-
-  formatDtOfOps(val: number | undefined): string {
+  formatDtOfOps(val: number | undefined | null): string {
     if (!val) return '—';
     const s = String(val);
     const d = new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);
@@ -218,10 +192,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  onDateChange():    void { this.currentPage = 0; this.loadOrders(); }
-  clearDateFilter(): void { this.dateFrom = ''; this.currentPage = 0; this.loadOrders(); }
-
-  // ── Tracking Key Copy ─────────────────────────────────────────
+  // ── Copy tracking key ────────────────────────────────────────
 
   copyTrackingKey(event: MouseEvent, key: string): void {
     event.stopPropagation();
@@ -232,7 +203,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Pagination ────────────────────────────────────────────────
+  // ── Pagination ───────────────────────────────────────────────
 
   goToPage(page: number): void {
     if (page < 0 || page >= this.totalPages) return;
@@ -249,9 +220,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private buildPageNumbers(): void {
     const total = this.totalPages, cur = this.currentPage;
     const pages: number[] = [];
-    if (total <= 7) {
-      for (let i = 0; i < total; i++) pages.push(i);
-    } else {
+    if (total <= 7) { for (let i = 0; i < total; i++) pages.push(i); }
+    else {
       pages.push(0);
       if (cur > 2) pages.push(-1);
       for (let i = Math.max(1, cur - 1); i <= Math.min(total - 2, cur + 1); i++) pages.push(i);
@@ -261,34 +231,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.pageNumbers = pages;
   }
 
-  // ── Dispatch ─────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────
 
-  dispatchOrder(order: OrderSummaryDto): void {
-    if (!confirm(`Mark order #${order.orderId} as dispatched?`)) return;
-
-    this.http.post<string>(
-      `${environment.apiUrl}/admin/dispatch/${order.orderId}`, {},
-      { headers: this.authHeaders(), responseType: 'text' as 'json' }
-    ).subscribe({
-      next: () => {
-        order.orderStatus  = 'DISPATCHED';
-        this.pendingCount  = Math.max(0, this.pendingCount - 1);
-        this.allOrders     = this.allOrders.filter(o => o.orderId !== order.orderId);
-        this.totalElements = Math.max(0, this.totalElements - 1);
-        this.applySort();
-      },
-      error: (err) => { this.error = err.error || 'Failed to dispatch order.'; }
-    });
+  openDetail(order: OrderSummaryDto): void {
+    this.router.navigate(['/admin/delivered', order.orderId]);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────
-
-  getStatusClass(s: string): string { return `status-${s}`; }
-  displayPage(p: number):    number  { return p + 1; }
-
-  openDetailPage(order: OrderSummaryDto): void {
-    this.router.navigate(['/admin/orders', order.orderId]);
-  }
+  displayPage(p: number): number { return p + 1; }
 
   private authHeaders(): HttpHeaders {
     const token = localStorage.getItem('admin_token') || '';

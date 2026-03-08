@@ -5,19 +5,21 @@
   <div class="top-bar">
     <div class="top-bar-left">
 
+      <!-- Search -->
       <div class="search-wrap" [class.searching]="searchLoading">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
         </svg>
         <input class="search-input" type="text"
-               placeholder="Search by order ID, name, phone, tracking key..."
+               placeholder="Search by tracking key..."
                [(ngModel)]="searchQuery" (input)="onSearchInput()">
         <span class="search-spinner" *ngIf="searchLoading"></span>
         <button class="search-clear" *ngIf="searchQuery && !searchLoading"
                 (click)="clearSearch()">✕</button>
       </div>
 
+      <!-- Date filter -->
       <div class="date-pick-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -38,7 +40,7 @@
 
     </div>
 
-    <!-- Pending count chip -->
+    <!-- Pending count chip only — dispatched chip removed -->
     <div class="stat-chips">
       <div class="stat-chip" style="background:rgba(245,158,11,0.12);color:#b45309">
         <span class="chip-val">{{ pendingCount }}</span>
@@ -141,6 +143,7 @@
               </div>
             </td>
 
+            <!-- Tracking Key — click stops propagation, copy button only -->
             <td>
               <div class="tracking-cell" (click)="$event.stopPropagation()">
                 <span class="tracking-key-chip">{{ order.trckngKey || '—' }}</span>
@@ -150,14 +153,16 @@
                   [class.copied]="copiedKey === order.trckngKey"
                   (click)="copyTrackingKey($event, order.trckngKey!)"
                   title="Copy tracking key">
-                  <svg *ngIf="copiedKey !== order.trckngKey" width="13" height="13" viewBox="0 0 24 24"
-                       fill="none" stroke="currentColor" stroke-width="2"
+                  <!-- Copy icon -->
+                  <svg *ngIf="copiedKey !== order.trckngKey" width="13" height="13"
+                       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                        stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2"/>
                     <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                   </svg>
-                  <svg *ngIf="copiedKey === order.trckngKey" width="13" height="13" viewBox="0 0 24 24"
-                       fill="none" stroke="currentColor" stroke-width="2.5"
+                  <!-- Tick icon when copied -->
+                  <svg *ngIf="copiedKey === order.trckngKey" width="13" height="13"
+                       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                        stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
@@ -175,9 +180,11 @@
               </span>
             </td>
 
+            <!-- Date from dtOfOps number field -->
             <td class="date-cell">
               <span class="date-main">{{ formatDtOfOps(order.dtOfOps) }}</span>
-              <span class="date-time" *ngIf="order.updatedDtOfOps && order.updatedDtOfOps !== order.dtOfOps">
+              <span class="date-upd"
+                    *ngIf="order.updatedDtOfOps && order.updatedDtOfOps !== order.dtOfOps">
                 Upd: {{ formatDtOfOps(order.updatedDtOfOps) }}
               </span>
             </td>
@@ -188,6 +195,7 @@
               </span>
             </td>
 
+            <!-- Actions — only view + dispatch, cancel removed -->
             <td>
               <div class="action-btns" (click)="$event.stopPropagation()">
                 <button class="btn-icon view"
@@ -199,16 +207,15 @@
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 </button>
-                <button class="btn-icon cancel"
-                        (click)="cancelOrder(order)"
-                        [disabled]="order.orderStatus === 'CANCELLED' || order.orderStatus === 'DELIVERED' || order.orderStatus === 'DISPATCHED'"
-                        title="Cancel">
+                <button class="btn-icon dispatch"
+                        (click)="dispatchOrder(order)"
+                        [disabled]="order.orderStatus !== 'PENDING' && order.orderStatus !== 'CONFIRMED'"
+                        title="Dispatch">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2"
                        stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
                 </button>
               </div>

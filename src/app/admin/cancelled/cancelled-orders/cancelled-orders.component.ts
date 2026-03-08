@@ -7,15 +7,16 @@ import { Router }            from '@angular/router';
 import { environment }       from '../../../../environments/environments';
 
 export interface OrderSummaryDto {
-  orderId:       number;
-  name:          string;
-  phone:         number | null;
-  amount:        number;
-  paymentStatus: string;
-  orderStatus:   string;
-  createdAt:     string;
-  email:         string;
-  trckngKey?:    string;
+  orderId:          number;
+  name:             string;
+  phone:            number | null;
+  amount:           number;
+  paymentStatus:    string;
+  orderStatus:      string;
+  dtOfOps:          number | null;      // e.g. 20260305
+  updatedDtOfOps:   number | null;
+  email:            string | null;
+  trckngKey?:       string;
 }
 
 interface PageResponse<T> {
@@ -44,10 +45,10 @@ export class CancelledOrdersComponent implements OnInit {
   error   = '';
 
   searchQuery  = '';
-  statusFilter: StatusFilter = 'cancelled';
+  statusFilter: StatusFilter = 'refund';   // ← default: REFUNDED pehle dikhega
 
-  sortField: 'orderId' | 'amount' | 'createdAt' = 'createdAt';
-  sortDir:   'asc' | 'desc'                      = 'desc';
+  sortField: 'orderId' | 'amount' | 'dtOfOps' = 'dtOfOps';
+  sortDir:   'asc' | 'desc'                    = 'desc';
 
   currentPage   = 0;
   pageSize      = 10;
@@ -57,11 +58,15 @@ export class CancelledOrdersComponent implements OnInit {
   endIndex      = 0;
   pageNumbers:  number[] = [];
 
+  copiedKey: string | null = null;   // for copy feedback
+
+  private searchDebounce: any = null;
+
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void { this.loadOrders(); }
 
-  // Tab switch → fresh API call
+  // ── Tab switch ─────────────────────────────────────────────────────────────
   setFilter(f: StatusFilter): void {
     if (this.statusFilter === f) return;
     this.statusFilter = f;
@@ -70,20 +75,40 @@ export class CancelledOrdersComponent implements OnInit {
     this.loadOrders();
   }
 
+  // ── Search input handler (debounced backend call) ──────────────────────────
+  onSearchInput(): void {
+    clearTimeout(this.searchDebounce);
+    this.searchDebounce = setTimeout(() => {
+      this.currentPage = 0;
+      this.loadOrders();
+    }, 400);
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.currentPage = 0;
+    this.loadOrders();
+  }
+
+  // ── Load orders from backend ───────────────────────────────────────────────
   loadOrders(): void {
     this.loading = true;
     this.error   = '';
 
-    // 'cancelled' tab → status=CANCELLED
-    // 'refund' tab    → status=REFUNDED  ← agar backend ka string alag ho to yahan change karo
     const statusParam = this.statusFilter === 'refund' ? 'REFUNDED' : 'CANCELLED';
 
-    const params = new HttpParams()
-      .set('page', String(this.currentPage))
-      .set('size', String(this.pageSize));
+    let params = new HttpParams()
+      .set('status', statusParam)
+      .set('page',   String(this.currentPage))
+      .set('size',   String(this.pageSize));
+
+    // If search query present → send as trckngKey param (backend search)
+    if (this.searchQuery.trim()) {
+      params = params.set('trckngKey', this.searchQuery.trim());
+    }
 
     this.http.get<PageResponse<OrderSummaryDto>>(
-      `${environment.apiUrl}/admin/orders?status=${statusParam}`,
+      `${environment.apiUrl}/admin/orders`,
       { headers: this.authHeaders(), params }
     ).subscribe({
       next: (res) => {
@@ -103,34 +128,46 @@ export class CancelledOrdersComponent implements OnInit {
     });
   }
 
+  // ── Client-side sort only (search is now server-side) ─────────────────────
   applyFilters(): void {
     let list = [...this.allOrders];
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.toLowerCase();
-      list = list.filter(o =>
-        String(o.orderId).includes(q) ||
-        o.name?.toLowerCase().includes(q) ||
-        o.email?.toLowerCase().includes(q) ||
-        (o.trckngKey?.toLowerCase() || '').includes(q)
-      );
-    }
     list.sort((a, b) => {
       let va: any, vb: any;
-      if (this.sortField === 'orderId')   { va = a.orderId;  vb = b.orderId; }
-      if (this.sortField === 'amount')    { va = a.amount;   vb = b.amount; }
-      if (this.sortField === 'createdAt') { va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); }
+      if (this.sortField === 'orderId') { va = a.orderId; vb = b.orderId; }
+      if (this.sortField === 'amount')  { va = a.amount;  vb = b.amount; }
+      if (this.sortField === 'dtOfOps') { va = a.dtOfOps ?? 0; vb = b.dtOfOps ?? 0; }
       return this.sortDir === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0)
                                     : (va > vb ? -1 : va < vb ? 1 : 0);
     });
     this.pagedOrders = list;
   }
 
-  sort(field: 'orderId' | 'amount' | 'createdAt'): void {
+  sort(field: 'orderId' | 'amount' | 'dtOfOps'): void {
     this.sortDir   = (this.sortField === field && this.sortDir === 'asc') ? 'desc' : 'asc';
     this.sortField = field;
     this.applyFilters();
   }
 
+  // ── dtOfOps parser: 20260305 → Date object ────────────────────────────────
+  parseDtOfOps(dtOfOps: number | null): Date | null {
+    if (!dtOfOps) return null;
+    const s   = String(dtOfOps);          // "20260305"
+    const yr  = +s.slice(0, 4);
+    const mo  = +s.slice(4, 6) - 1;       // 0-indexed month
+    const day = +s.slice(6, 8);
+    return new Date(yr, mo, day);
+  }
+
+  // ── Copy tracking key ──────────────────────────────────────────────────────
+  copyTrackingKey(event: MouseEvent, key: string): void {
+    event.stopPropagation();
+    navigator.clipboard.writeText(key).then(() => {
+      this.copiedKey = key;
+      setTimeout(() => { this.copiedKey = null; }, 1800);
+    });
+  }
+
+  // ── Pagination ─────────────────────────────────────────────────────────────
   goToPage(page: number): void {
     if (page < 0 || page >= this.totalPages) return;
     this.currentPage = page;

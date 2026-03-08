@@ -125,18 +125,28 @@ td { font-size: 0.85rem; color: #5A4A4A; }
 .customer-name  { font-weight: 500; color: #1C1C1C; font-size: 0.88rem; }
 .customer-email { font-size: 0.72rem; color: #9A8A8A; }
 
-/* Tracking key chip */
+/* ── Tracking key with copy ── */
+.tracking-key-wrap {
+  display: inline-flex; align-items: center; gap: 6px;
+}
 .tracking-key-chip {
   font-size: 0.72rem; background: #f5f0ea; color: #5A4A4A;
   padding: 4px 10px; border-radius: 6px;
   font-family: 'Courier New', monospace; font-weight: 600;
   letter-spacing: 0.5px; white-space: nowrap;
 }
+.copy-btn {
+  width: 24px; height: 24px; border: none; border-radius: 6px;
+  background: rgba(90,74,74,0.08); color: #9A8A8A;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.18s ease; flex-shrink: 0;
+}
+.copy-btn:hover { background: rgba(90,74,74,0.16); color: #5A4A4A; transform: scale(1.1); }
+.copy-btn.copied { background: rgba(22,163,74,0.12); color: #15803d; }
 
 .price-cell { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 600; color: #1C1C1C; }
 .date-cell  { display: flex; flex-direction: column; gap: 2px; }
 .date-main  { font-size: 0.83rem; color: #1C1C1C; font-weight: 500; }
-.date-time  { font-size: 0.7rem; color: #9A8A8A; }
 
 /* Status badges */
 .status-badge     { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
