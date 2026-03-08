@@ -1,42 +1,18 @@
 // all-products.component.ts
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environments';
 import { CartService } from '../../services/cart.service';
 
-interface ProductVariant {
-  id: number;
-  size: string;
-  price: number;
-  stock: number;
-}
-
-interface ProductImage {
-  id: number;
-  imageUrl: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  trending: string;
-  createdAt: string;
-  isActive: boolean;
-  category: Category;
-  productImages: ProductImage[];
-  variants: ProductVariant[];
-}
+import { ProductHeaderComponent } from './product-header/product-header.component';
+import { ProductFilterSidebarComponent } from './product-filter-sidebar/product-filter-sidebar.component';
+import { ProductToolbarComponent } from './product-toolbar/product-toolbar.component';
+import { ProductCardComponent, Product, ProductVariant } from './product-card/product-card.component';
+import { ProductPaginationComponent } from './product-pagination/product-pagination.component';
 
 interface PageResponse {
   content: Product[];
@@ -50,54 +26,62 @@ interface PageResponse {
 @Component({
   selector: 'app-all-products',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    ProductHeaderComponent,
+    ProductFilterSidebarComponent,
+    ProductToolbarComponent,
+    ProductCardComponent,
+    ProductPaginationComponent,
+  ],
   templateUrl: './all-products.component.html',
   styleUrl: './all-products.component.css',
 })
 export class AllProductsComponent implements OnInit, OnDestroy {
 
-  products:      Product[] = [];
-  loading        = true;
-  cardsVisible   = false;
+  products: Product[] = [];
+  loading = true;
+  cardsVisible = false;
 
   // Pagination
-  currentPage   = 0;
-  totalPages    = 0;
+  currentPage = 0;
+  totalPages = 0;
   totalElements = 0;
-  pageSize      = 10;
-  pageNumbers:  number[] = [];
+  pageSize = 10;
 
   // Filters
   filters = {
-    keyword:  '',
+    keyword: '',
     category: '',
     minPrice: null as number | null,
     maxPrice: null as number | null,
   };
 
   // UI state
-  filterOpen  = false;
+  filterOpen = false;
   viewMode: 'grid' | 'list' = 'grid';
   categories: string[] = [];
   skeletonArr = Array(10).fill(0);
 
-  // Per-product cart state: productId → variant/state/error
-  openDropdownId: number | null = null;
-
+  // Per-product state maps
   private selectedVariants = new Map<number, ProductVariant>();
-  private cartStates       = new Map<number, 'idle' | 'loading' | 'added'>();
-  private cartErrors       = new Map<number, string>();
-  private errorTimers      = new Map<number, any>();
+  private cartStates = new Map<number, 'idle' | 'loading' | 'added'>();
+  private cartErrors = new Map<number, string>();
+  private errorTimers = new Map<number, any>();
+  private productQtys = new Map<number, number>();
 
   private searchSubject = new Subject<string>();
-  private destroy$      = new Subject<void>();
+  private destroy$ = new Subject<void>();
 
-  constructor(private http: HttpClient, private router: Router, private cartService: CartService) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private cartService: CartService
+  ) {}
 
   ngOnInit(): void {
     this.loadProducts();
 
-    // Debounced search
     this.searchSubject.pipe(
       debounceTime(600),
       distinctUntilChanged(),
@@ -113,19 +97,26 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscKey(): void {
+    this.filterOpen = false;
+  }
+
+  onPageClick(_event: Event): void {}
+
   // ─────────────────────────────────────────────
-  // LOAD PRODUCTS
+  // LOAD
   // ─────────────────────────────────────────────
 
   loadProducts(): void {
-    this.loading      = true;
+    this.loading = true;
     this.cardsVisible = false;
 
     let params = new HttpParams()
       .set('page', String(this.currentPage))
       .set('size', String(this.pageSize));
 
-    if (this.filters.keyword)  params = params.set('keyword',  this.filters.keyword);
+    if (this.filters.keyword)  params = params.set('keyword', this.filters.keyword);
     if (this.filters.category) params = params.set('category', this.filters.category);
     if (this.filters.minPrice != null) params = params.set('minPrice', String(this.filters.minPrice));
     if (this.filters.maxPrice != null) params = params.set('maxPrice', String(this.filters.maxPrice));
@@ -134,24 +125,23 @@ export class AllProductsComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
-          this.products      = res.content;
+          this.products = res.content;
           this.totalElements = res.totalElements;
-          this.totalPages    = res.totalPages;
-          this.currentPage   = res.number;
-          this.buildPageNumbers();
+          this.totalPages = res.totalPages;
+          this.currentPage = res.number;
           this.extractCategories(res.content);
           this.loading = false;
           setTimeout(() => (this.cardsVisible = true), 60);
         },
         error: () => {
-          this.loading  = false;
+          this.loading = false;
           this.products = [];
         }
       });
   }
 
   // ─────────────────────────────────────────────
-  // FILTER HELPERS
+  // FILTERS
   // ─────────────────────────────────────────────
 
   onSearchInput(): void {
@@ -181,9 +171,28 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     this.loadProducts();
   }
 
+  onPriceChange(event: { min: number | null; max: number | null }): void {
+    this.filters.minPrice = event.min;
+    this.filters.maxPrice = event.max;
+    this.applyFilters();
+  }
+
   get hasActiveFilters(): boolean {
-    return !!(this.filters.keyword || this.filters.category ||
-              this.filters.minPrice != null || this.filters.maxPrice != null);
+    return !!(
+      this.filters.keyword ||
+      this.filters.category ||
+      this.filters.minPrice != null ||
+      this.filters.maxPrice != null
+    );
+  }
+
+  get activeFilterCount(): number {
+    let count = 0;
+    if (this.filters.keyword) count++;
+    if (this.filters.category) count++;
+    if (this.filters.minPrice != null) count++;
+    if (this.filters.maxPrice != null) count++;
+    return count;
   }
 
   // ─────────────────────────────────────────────
@@ -197,23 +206,6 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  buildPageNumbers(): void {
-    const total   = this.totalPages;
-    const current = this.currentPage;
-    const pages: number[] = [];
-
-    if (total <= 7) {
-      for (let i = 0; i < total; i++) pages.push(i);
-    } else {
-      pages.push(0);
-      if (current > 2)        pages.push(-1); // ellipsis
-      for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) pages.push(i);
-      if (current < total - 3) pages.push(-1); // ellipsis
-      pages.push(total - 1);
-    }
-    this.pageNumbers = pages;
-  }
-
   // ─────────────────────────────────────────────
   // PRODUCT HELPERS
   // ─────────────────────────────────────────────
@@ -223,19 +215,6 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     const url = product.productImages[0].imageUrl;
     if (url.startsWith('http')) return url;
     return `${environment.imageBaseUrl}${url}`;
-  }
-
-  getVariantPriceRange(product: Product): string {
-    const variants = product.variants;
-    if (!variants?.length) return '';
-    const prices = variants.map(v => v.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    return min === max ? `₹${min}` : `₹${min} – ₹${max}`;
-  }
-
-  getAvailableSizes(product: Product): string[] {
-    return product.variants?.filter(v => v.stock > 0).map(v => v.size) ?? [];
   }
 
   isFullyOutOfStock(product: Product): boolean {
@@ -254,7 +233,6 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/products', id]);
   }
 
-  // Extract unique categories from loaded products for sidebar chips
   private extractCategories(products: Product[]): void {
     const seen = new Set<string>();
     products.forEach(p => { if (p.category?.name) seen.add(p.category.name); });
@@ -262,18 +240,20 @@ export class AllProductsComponent implements OnInit, OnDestroy {
   }
 
   // ─────────────────────────────────────────────
-  // CART — variant selection & add to cart
+  // VARIANT
   // ─────────────────────────────────────────────
 
-  toggleDropdown(productId: number): void {
-    this.openDropdownId = this.openDropdownId === productId ? null : productId;
+  selectVariantBySize(productId: number, size: string, variants: ProductVariant[]): void {
+    const variant = variants.find(v => v.size === size);
+    if (variant) {
+      this.selectedVariants.set(productId, variant);
+      this.cartStates.set(productId, 'idle');
+      this.cartErrors.delete(productId);
+    }
   }
 
-  selectVariant(productId: number, variant: ProductVariant): void {
-    this.selectedVariants.set(productId, variant);
-    // Reset cart state when size changes
-    this.cartStates.set(productId, 'idle');
-    this.cartErrors.delete(productId);
+  getSelectedVariantSize(productId: number): string {
+    return this.selectedVariants.get(productId)?.size ?? '';
   }
 
   getSelectedVariantId(productId: number): number | null {
@@ -284,15 +264,6 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     return this.selectedVariants.get(productId) ?? null;
   }
 
-  getCartState(productId: number): 'idle' | 'loading' | 'added' {
-    return this.cartStates.get(productId) ?? 'idle';
-  }
-
-  getCartError(productId: number): string {
-    return this.cartErrors.get(productId) ?? '';
-  }
-
-  // Price display — selected variant ka price, warna range
   getSelectedPrice(product: Product): string {
     const sv = this.selectedVariants.get(product.id);
     if (sv) return `₹${sv.price}`;
@@ -303,16 +274,50 @@ export class AllProductsComponent implements OnInit, OnDestroy {
     return min === max ? `₹${min}` : `₹${min} – ₹${max}`;
   }
 
+  // ─────────────────────────────────────────────
+  // QUANTITY
+  // ─────────────────────────────────────────────
+
+  getQty(productId: number): number {
+    return this.productQtys.get(productId) ?? 1;
+  }
+
+  incrementQty(productId: number): void {
+    const sv = this.selectedVariants.get(productId);
+    const max = sv?.stock ?? 99;
+    const current = this.getQty(productId);
+    if (current < max) this.productQtys.set(productId, current + 1);
+  }
+
+  decrementQty(productId: number): void {
+    const current = this.getQty(productId);
+    if (current > 1) this.productQtys.set(productId, current - 1);
+  }
+
+  // ─────────────────────────────────────────────
+  // CART
+  // ─────────────────────────────────────────────
+
+  getCartState(productId: number): 'idle' | 'loading' | 'added' {
+    return this.cartStates.get(productId) ?? 'idle';
+  }
+
+  getCartError(productId: number): string {
+    return this.cartErrors.get(productId) ?? '';
+  }
+
   onAddToCart(product: Product): void {
     const variant = this.selectedVariants.get(product.id);
     if (!variant || this.cartStates.get(product.id) !== 'idle') return;
 
+    const qty = this.getQty(product.id);
     this.cartStates.set(product.id, 'loading');
     this.cartErrors.delete(product.id);
 
-    this.cartService.addItem(variant.id!, 1).subscribe({
+    this.cartService.addItem(variant.id!, qty).subscribe({
       next: () => {
         this.cartStates.set(product.id, 'added');
+        this.productQtys.set(product.id, 1);
         const t = setTimeout(() => {
           this.cartStates.set(product.id, 'idle');
         }, 2200);
@@ -322,7 +327,7 @@ export class AllProductsComponent implements OnInit, OnDestroy {
         this.cartStates.set(product.id, 'idle');
         const msg = err?.error?.message || err?.error?.error || 'Could not add to cart';
         this.cartErrors.set(product.id, msg);
-        const t = setTimeout(() => this.cartErrors.delete(product.id), 3000);
+        const t = setTimeout(() => this.cartErrors.delete(product.id), 3500);
         this.errorTimers.set(product.id, t);
       }
     });

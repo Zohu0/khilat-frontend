@@ -85,7 +85,7 @@
               </span>
             </th>
             <th>Customer</th>
-            <th>Phone</th>
+            <th>Tracking Key</th>
             <th class="sortable" (click)="sort('amount')">
               Amount
               <span class="sort-arrow" [class.active]="sortField==='amount'">
@@ -118,7 +118,14 @@
               </div>
             </td>
 
-            <td><span class="guest-id-chip">{{ order.phone || '—' }}</span></td>
+            <td>
+              <span class="tracking-key" *ngIf="order.trckngKey; else noKey">
+                {{ order.trckngKey }}
+              </span>
+              <ng-template #noKey>
+                <span class="tracking-empty">—</span>
+              </ng-template>
+            </td>
 
             <td class="price-cell">₹{{ order.amount | number:'1.0-0' }}</td>
 

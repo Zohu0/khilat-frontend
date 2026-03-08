@@ -107,23 +107,7 @@ export class Cart implements OnInit, OnDestroy {
     return this.cartItems.reduce((sum, i) => sum + i.quantity, 0);
   }
 
-  get deliveryCharge(): number {
-    return this.subtotal >= 999 ? 0 : 99;
-  }
-
-  get grandTotal(): number {
-    return +(this.subtotal + this.deliveryCharge).toFixed(2);
-  }
-
   get formattedSubtotal(): string {
     return `₹${this.subtotal.toFixed(2)}`;
-  }
-
-  get formattedGrandTotal(): string {
-    return `₹${this.grandTotal.toFixed(2)}`;
-  }
-
-  get formattedDelivery(): string {
-    return this.deliveryCharge === 0 ? 'FREE' : `₹${this.deliveryCharge}`;
   }
 }

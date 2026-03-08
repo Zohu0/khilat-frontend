@@ -15,4 +15,11 @@ export class HeroComponent {
   @Input() heroSlide   = 0;
   @Input() heroSlides: { image: string; tag: string; title: string }[] = [];
   @Output() setSlide   = new EventEmitter<number>();
+  @Output() browseCategoriesClick = new EventEmitter<void>();
+
+  scrollToCategories(): void {
+    this.browseCategoriesClick.emit();
+    const el = document.querySelector('#categories') ?? document.querySelector('app-categories');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }

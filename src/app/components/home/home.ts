@@ -133,6 +133,14 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigate(['/products', id]);
   }
 
+
+  scrollToCategories(): void {
+  this.categoriesSection?.nativeElement?.scrollIntoView({ 
+    behavior: 'smooth', 
+    block: 'start' 
+  });
+}
+
   // ── Hero slider ───────────────────────────────────────────────
 
   setHeroSlide(index: number): void {
@@ -187,6 +195,8 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
       error: ()     => (this.loadingCategories = false),
     });
   }
+
+  
 
   // ── Scroll reveal ─────────────────────────────────────────────
 

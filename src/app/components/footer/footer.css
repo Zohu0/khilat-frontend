@@ -68,7 +68,7 @@
 /* ── MAIN GRID ── */
 .footer-grid {
   display:               grid;
-  grid-template-columns: 1.8fr 1fr 1fr 1.6fr;
+  grid-template-columns: 2fr 1fr 1.8fr;
   gap:                   3rem;
   padding-bottom:        3rem;
   border-bottom:         1px solid rgba(255,245,228,0.07);
@@ -281,7 +281,7 @@
   display:     flex;
   align-items: center;
   gap:         8px;
-  padding:     0 2rem;
+  padding:     0 2.5rem;
   font-size:   0.75rem;
   font-weight: 400;
   letter-spacing: 0.04em;
@@ -340,7 +340,7 @@
     gap:                   2.5rem;
   }
   .col-brand { grid-column: 1 / -1; }
-  .trust-item { padding: 0 1.25rem; }
+  .trust-item { padding: 0 1.5rem; }
 }
 
 @media (max-width: 640px) {

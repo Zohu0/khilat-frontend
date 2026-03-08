@@ -4,6 +4,8 @@
   padding: 2rem;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  overflow: visible;   /* ← add karo, default hai but explicit rakho */
+  position: relative;  /* ← add karo */
 }
 
 /* Header */
@@ -37,9 +39,13 @@
 .recap-contact { color: #9A8A8A !important; margin-top: 2px; }
 
 /* Stripe wrapper */
+/* ── AFTER (fixed) ── */
 .stripe-element-wrap {
   min-height: 200px; margin-bottom: 1.5rem;
-  border-radius: 12px; overflow: hidden;
+  border-radius: 12px;
+  overflow: visible;        /* ← overflow: hidden hatao */
+  position: relative;       /* ← add karo */
+  z-index: 10;              /* ← Stripe UI upar rahe */
 }
 .stripe-loading {
   display: flex; align-items: center; gap: 10px;

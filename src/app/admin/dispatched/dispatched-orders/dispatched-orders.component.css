@@ -1,5 +1,4 @@
 /* src/app/admin/dispatched/dispatched-orders/dispatched-orders.component.css */
-/* Same as orders.component.css — full copy so no dependency */
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 :root {
@@ -100,7 +99,25 @@ td { font-size: 0.85rem; color: #5A4A4A; }
 .customer-cell { display: flex; flex-direction: column; gap: 2px; }
 .customer-name  { font-weight: 500; color: #1C1C1C; font-size: 0.88rem; }
 .customer-email { font-size: 0.72rem; color: #9A8A8A; }
-.guest-id-chip  { font-size: 0.75rem; background: #f5f0ea; color: #5A4A4A; padding: 3px 8px; border-radius: 6px; font-family: monospace; }
+
+/* Tracking key styles */
+.tracking-key {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-family: monospace;
+  font-weight: 600;
+  background: rgba(139,92,246,0.08);
+  color: #6d28d9;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tracking-empty { color: #9A8A8A; font-size: 0.85rem; }
+
 .price-cell     { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 600; color: #1C1C1C; }
 .date-cell      { display: flex; flex-direction: column; gap: 2px; }
 .date-main      { font-size: 0.83rem; color: #1C1C1C; font-weight: 500; }

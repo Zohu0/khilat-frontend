@@ -1,0 +1,104 @@
+/* product-toolbar.component.css */
+.products-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-right { display: flex; align-items: center; gap: 10px; }
+
+.filter-toggle-btn {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font-size: 0.84rem;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--mid);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.filter-toggle-btn:hover { border-color: var(--pink); color: var(--dark); }
+.filter-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: var(--pink-dark);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-count { font-size: 0.84rem; color: var(--muted); }
+.result-count strong { color: var(--dark); font-weight: 600; }
+
+.view-toggle {
+  display: flex;
+  background: var(--cream);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.view-btn {
+  width: 36px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s ease;
+}
+.view-btn:hover { color: var(--dark); background: var(--blush); }
+.view-btn.active { background: var(--dark); color: var(--white); }
+
+/* Active filter tags */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+.active-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: var(--blush);
+  border: 1px solid rgba(255,148,148,0.3);
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  color: var(--pink-dark);
+  font-weight: 500;
+}
+.active-filter-tag button {
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  color: var(--pink-dark);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 1px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.active-filter-tag button:hover { opacity: 1; }
+
+@media (max-width: 860px) {
+  .filter-toggle-btn { display: flex; }
+}

@@ -15,6 +15,7 @@ export interface OrderSummaryDto {
   orderStatus:   string;
   createdAt:     string;
   email:         string;
+  trckngKey:     string | null;
 }
 
 interface PageResponse<T> {
