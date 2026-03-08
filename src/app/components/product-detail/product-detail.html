@@ -110,7 +110,7 @@
         <!-- Product Name -->
         <h1 class="product-title">{{ product.name }}</h1>
 
-        <!-- Price — selectedVariant se, ya range -->
+        <!-- Price -->
         <div class="price-row">
           <span class="price-main">{{ displayPrice }}</span>
           <span class="price-off" *ngIf="product.originalPrice">
@@ -118,7 +118,7 @@
           </span>
         </div>
 
-        <!-- Stock label (size select hone ke baad) -->
+        <!-- Stock label -->
         <div class="stock-status-row" *ngIf="selectedSize">
           <span class="stock-tag" [ngClass]="stockClass">{{ stockLabel }}</span>
         </div>
@@ -128,7 +128,7 @@
         <!-- Description -->
         <p class="product-desc" *ngIf="product.description">{{ product.description }}</p>
 
-        <!-- Size Selector — API variants se -->
+        <!-- Size Selector -->
         <div class="selector-group" *ngIf="sizes.length > 0">
           <div class="selector-label">
             Size
@@ -144,10 +144,8 @@
               [title]="variant.stock === 0 ? 'Out of stock' : ''"
               (click)="selectSize(variant.size)">
               {{ variant.size }}
-              <span class="size-oos-line" *ngIf="variant.stock === 0"></span>
             </button>
           </div>
-          <!-- Size hint -->
           <p class="size-hint" *ngIf="!selectedSize">Please select a size to continue</p>
         </div>
 
@@ -164,7 +162,7 @@
 
         <div class="info-divider"></div>
 
-        <!-- CTA Buttons — in stock aur size select ho -->
+        <!-- CTA Buttons -->
         <div class="cta-group" *ngIf="!isFullyOutOfStock && !isSelectedOutOfStock">
           <button
             class="btn-add-cart"
@@ -180,66 +178,171 @@
           <a routerLink="/cart" class="btn-buy-now" *ngIf="selectedSize">Buy Now</a>
         </div>
 
-        <!-- Out of stock message -->
+        <!-- Out of stock messages -->
         <div class="out-of-stock-msg" *ngIf="isFullyOutOfStock">
           <span>😔 This item is currently out of stock</span>
         </div>
-
-        <!-- Selected size is OOS but product has other sizes -->
         <div class="out-of-stock-msg" *ngIf="!isFullyOutOfStock && isSelectedOutOfStock && selectedSize">
           <span>😔 This size is out of stock — try another size</span>
         </div>
 
         <!-- Perks -->
         <div class="perks-row">
-          <div class="perk">
-            <span class="perk-icon">🚚</span>
-            <span>Free delivery above ₹999</span>
-          </div>
-          <div class="perk">
-            <span class="perk-icon">↩️</span>
-            <span>7-day easy returns</span>
-          </div>
-          <div class="perk">
-            <span class="perk-icon">🔒</span>
-            <span>Secure payment</span>
-          </div>
+          <!-- <div class="perk"><span class="perk-icon">🚚</span><span>Free delivery above ₹999</span></div> -->
+          <div class="perk"><span class="perk-icon">↩️</span><span>7-day easy returns</span></div>
+          <div class="perk"><span class="perk-icon">🔒</span><span>Secure payment</span></div>
         </div>
 
       </div>
     </div>
   </div>
 
-  <!-- Related Products -->
-  <section class="related-section" *ngIf="relatedProducts.length > 0">
+  <!-- ==========================================
+       REVIEWS SECTION
+       ========================================== -->
+  <section class="reviews-section">
     <div class="pd-container">
-      <div class="related-head">
-        <p class="section-eyebrow">You may also like</p>
-        <h2 class="related-title">Similar <em>Styles</em></h2>
-      </div>
 
-      <div class="related-grid">
-        <div
-          *ngFor="let p of relatedProducts | slice:0:4; let i = index"
-          class="related-card"
-          [style.animation-delay]="(i * 0.1) + 's'"
-          (click)="goToProduct(p.id)">
-          <div class="related-img-wrap">
-            <img [src]="p.image" [alt]="p.name" class="related-img"
-                 onerror="this.onerror=null; this.style.display='none'">
-            <div class="related-overlay">
-              <span>View Details</span>
+      <!-- Section Header -->
+      <div class="reviews-head">
+        <div class="reviews-head-left">
+          <span class="section-eyebrow">What customers say</span>
+          <h2 class="reviews-title">Customer <em>Reviews</em></h2>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="reviews-summary" *ngIf="reviews.length > 0">
+          <div class="avg-score">{{ avgRating | number:'1.1-1' }}</div>
+          <div class="avg-details">
+            <div class="avg-stars">
+              <span
+                *ngFor="let star of getStars(avgRating)"
+                class="rev-star"
+                [class.filled]="star.type === 'full'"
+                [class.half]="star.type === 'half'">
+                {{ star.type === 'empty' ? '☆' : '★' }}
+              </span>
             </div>
-          </div>
-          <div class="related-info">
-            <span class="related-cat" *ngIf="p.category">{{ p.category.name }}</span>
-            <h4 class="related-name">{{ p.name }}</h4>
-            <!-- Price range from variants -->
-            <span class="related-price" *ngIf="p.variants?.length">
-              {{ getVariantPriceRange(p.variants) }}
-            </span>
+            <span class="avg-count">Based on {{ reviews.length }} review{{ reviews.length !== 1 ? 's' : '' }}</span>
           </div>
         </div>
+      </div>
+
+      <div class="reviews-layout">
+
+        <!-- Left: Review Cards -->
+        <div class="reviews-list-col">
+
+          <!-- Loading -->
+          <div class="reviews-loading" *ngIf="reviewsLoading">
+            <div class="skel-line w-90 shimmer" style="height:100px; border-radius:16px"></div>
+            <div class="skel-line w-90 shimmer" style="height:100px; border-radius:16px; margin-top:12px"></div>
+          </div>
+
+          <!-- Empty State -->
+          <div class="reviews-empty" *ngIf="!reviewsLoading && reviews.length === 0">
+            <div class="empty-icon">✨</div>
+            <p>No reviews yet. Be the first to share your thoughts!</p>
+          </div>
+
+          <!-- Review Cards -->
+          <div class="reviews-list" *ngIf="!reviewsLoading && reviews.length > 0">
+            <div class="review-card" *ngFor="let review of reviews; let i = index" [style.animation-delay]="(i * 0.08) + 's'">
+              <div class="review-card-top">
+                <div class="reviewer-avatar">{{ review.reviewerName.charAt(0).toUpperCase() }}</div>
+                <div class="reviewer-meta">
+                  <span class="reviewer-name">{{ review.reviewerName }}</span>
+                  <div class="review-stars">
+                    <span
+                      *ngFor="let s of [1,2,3,4,5]"
+                      class="rev-star"
+                      [class.filled]="s <= review.rating">
+                      {{ s <= review.rating ? '★' : '☆' }}
+                    </span>
+                  </div>
+                </div>
+                <span class="review-date" *ngIf="review.createdAt">
+                  {{ review.createdAt | date:'MMM d, y' }}
+                </span>
+              </div>
+              <p class="review-msg">{{ review.reviewMsg }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Write a Review Form -->
+        <div class="review-form-col">
+          <div class="review-form-card">
+            <h3 class="form-title">Write a Review</h3>
+
+            <!-- Success State -->
+            <div class="review-success" *ngIf="reviewSubmitted">
+              <div class="success-icon">🎉</div>
+              <p>Thank you for your review!</p>
+              <button class="btn-write-another" (click)="reviewSubmitted = false">Write another</button>
+            </div>
+
+            <!-- Form -->
+            <div *ngIf="!reviewSubmitted">
+              <!-- Star Rating Picker -->
+              <div class="form-group">
+                <label class="form-label">Your Rating <span class="req">*</span></label>
+                <div class="star-picker" (mouseleave)="clearHover()">
+                  <button
+                    *ngFor="let s of [1,2,3,4,5]"
+                    class="star-pick-btn"
+                    [class.filled]="getStarState(s) === 'filled'"
+                    [class.hovered]="getStarState(s) === 'hover'"
+                    type="button"
+                    (mouseenter)="setHover(s)"
+                    (click)="setRating(s)">
+                    ★
+                  </button>
+                </div>
+                <span class="rating-label-text" *ngIf="reviewForm.rating > 0">
+                  {{ ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewForm.rating] }}
+                </span>
+              </div>
+
+              <!-- Name -->
+              <div class="form-group">
+                <label class="form-label">Your Name <span class="req">*</span></label>
+                <input
+                  class="form-input"
+                  type="text"
+                  placeholder="e.g. Priya Sharma"
+                  [(ngModel)]="reviewForm.reviewerName"
+                  maxlength="60">
+              </div>
+
+              <!-- Message -->
+              <div class="form-group">
+                <label class="form-label">Your Review <span class="req">*</span></label>
+                <textarea
+                  class="form-textarea"
+                  placeholder="Share your experience with this product…"
+                  [(ngModel)]="reviewForm.reviewMsg"
+                  rows="4"
+                  maxlength="500">
+                </textarea>
+                <span class="char-count">{{ reviewForm.reviewMsg.length }}/500</span>
+              </div>
+
+              <!-- Error -->
+              <p class="review-error" *ngIf="reviewError">{{ reviewError }}</p>
+
+              <!-- Submit -->
+              <button
+                class="btn-submit-review"
+                (click)="submitReview()"
+                [disabled]="reviewSubmitting">
+                <span *ngIf="!reviewSubmitting">Submit Review</span>
+                <span *ngIf="reviewSubmitting" class="submitting-dots">Submitting…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>

@@ -2,6 +2,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule }      from '@angular/common';
 import { RouterLink }        from '@angular/router';
+import { FormsModule }       from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService }    from '../../services/product.service';
 import { Product }           from '../../models/product.model';
@@ -10,7 +11,7 @@ import { environment }       from '../../../environments/environments';
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './product-detail.html',
   styleUrl: './product-detail.css'
 })
@@ -22,11 +23,11 @@ export class ProductDetail implements OnInit {
   pageVisible   = false;
 
   images:           string[] = [];
+  currentProductId: number = 0;   // route param se store karenge
   activeImage:      string   = '';
   activeImageIndex: number   = 0;
   isZoomed        = false;
 
-  // Variants-derived — hardcoded sizes/colors hata diye
   sizes:  string[] = [];
   selectedSize  = '';
   selectedColor = '';
@@ -35,6 +36,20 @@ export class ProductDetail implements OnInit {
   addedToCart     = false;
   relatedProducts: any[] = [];
   isNew           = false;
+
+  // ─── Review State ────────────────────────────
+  reviews:         any[] = [];
+  reviewsLoading   = false;
+
+  reviewForm = {
+    reviewerName: '',
+    reviewMsg:    '',
+    rating:       0,
+  };
+  hoverRating      = 0;
+  reviewSubmitting = false;
+  reviewSubmitted  = false;
+  reviewError      = '';
 
   constructor(
     private route:          ActivatedRoute,
@@ -70,21 +85,26 @@ export class ProductDetail implements OnInit {
     this.images           = [];
     this.activeImage      = '';
     this.sizes            = [];
+    this.reviews          = [];
+    this.reviewSubmitted  = false;
+    this.reviewForm       = { reviewerName: '', reviewMsg: '', rating: 0 };
+    this.hoverRating      = 0;
   }
 
   private loadProduct(id: number): void {
+    this.currentProductId = id;
     this.productService.getProductById(id).subscribe({
       next: (product: any) => {
         this.product = product;
         this.setupImages(product);
         this.setupVariants(product);
         this.checkIfNew(product);
+
+        // ✅ Reviews directly product response se — alag API call nahi
+        this.reviews = Array.isArray(product.reviews) ? product.reviews : [];
+
         this.loading = false;
         setTimeout(() => (this.pageVisible = true), 80);
-
-        if (product.category?.id) {
-          this.loadRelated(product.category.id, product.id);
-        }
       },
       error: (err: any) => {
         console.error('Product load error:', err);
@@ -94,18 +114,79 @@ export class ProductDetail implements OnInit {
     });
   }
 
-  private loadRelated(categoryId: number, currentProductId: number): void {
-    this.productService.getProductsByCategory(categoryId).subscribe({
-      next: (products: any[]) => {
-        this.relatedProducts = products
-          .filter((p: any) => p.id !== currentProductId)
-          .slice(0, 4)
-          .map((p: any) => ({ ...p, image: this.resolveImage(p) }));
+  // ─────────────────────────────────────────────
+  // REVIEWS
+  // ─────────────────────────────────────────────
+
+  setRating(star: number): void { this.reviewForm.rating = star; }
+  setHover(star: number):  void { this.hoverRating = star; }
+  clearHover():            void { this.hoverRating = 0; }
+
+  getStarState(star: number): 'filled' | 'hover' | 'empty' {
+    const active = this.hoverRating || this.reviewForm.rating;
+    if (star <= active) return this.hoverRating && star <= this.hoverRating ? 'hover' : 'filled';
+    return 'empty';
+  }
+
+  submitReview(): void {
+    this.reviewError = '';
+
+    if (!this.reviewForm.reviewerName.trim()) {
+      this.reviewError = 'Please enter your name.';
+      return;
+    }
+    if (!this.reviewForm.rating) {
+      this.reviewError = 'Please select a star rating.';
+      return;
+    }
+    if (!this.reviewForm.reviewMsg.trim()) {
+      this.reviewError = 'Please write a review message.';
+      return;
+    }
+
+    // ✅ Exact payload jo backend expect karta hai
+    const payload = {
+      productId:    this.currentProductId,
+      reviewerName: this.reviewForm.reviewerName.trim(),
+      reviewMsg:    this.reviewForm.reviewMsg.trim(),
+      rating:       this.reviewForm.rating,
+    };
+
+    this.reviewSubmitting = true;
+
+    this.productService.submitReview(payload).subscribe({
+      next: () => {
+        this.reviewSubmitting = false;
+        this.reviewSubmitted  = true;
+        // Optimistically add to top of list so user sees it immediately
+        this.reviews = [
+          {
+            reviewerName: payload.reviewerName,
+            reviewMsg:    payload.reviewMsg,
+            rating:       payload.rating,
+            createdAt:    new Date().toISOString(),
+          },
+          ...this.reviews
+        ];
+        this.reviewForm = { reviewerName: '', reviewMsg: '', rating: 0 };
       },
       error: () => {
-        // API not available — silently skip related products
-        this.relatedProducts = [];
+        this.reviewSubmitting = false;
+        this.reviewError = 'Something went wrong. Please try again.';
       }
+    });
+  }
+
+  get avgRating(): number {
+    if (!this.reviews.length) return 0;
+    return this.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / this.reviews.length;
+  }
+
+  getStars(rating: number): { type: 'full' | 'half' | 'empty' }[] {
+    return [1, 2, 3, 4, 5].map(i => {
+      if (rating >= i)       return { type: 'full' };
+      if (rating >= i - 0.5) return { type: 'half' };
+      return { type: 'empty' };
     });
   }
 
@@ -149,13 +230,12 @@ export class ProductDetail implements OnInit {
   }
 
   // ─────────────────────────────────────────────
-  // VARIANTS — sizes API response ke variants se
+  // VARIANTS
   // ─────────────────────────────────────────────
 
   private setupVariants(product: any): void {
     if (product.variants && product.variants.length > 0) {
       this.sizes = product.variants.map((v: any) => v.size);
-      // Auto-select first available size
       const firstAvailable = product.variants.find((v: any) => v.stock > 0);
       if (firstAvailable) this.selectedSize = firstAvailable.size;
     } else {
@@ -163,13 +243,11 @@ export class ProductDetail implements OnInit {
     }
   }
 
-  /** Selected size ka variant object */
   get selectedVariant(): any {
     if (!this.product?.variants || !this.selectedSize) return null;
     return this.product.variants.find((v: any) => v.size === this.selectedSize) ?? null;
   }
 
-  /** Display price — selected variant ka, ya range */
   get displayPrice(): string {
     if (this.selectedVariant) return `₹${this.selectedVariant.price}`;
     const prices = this.product?.variants?.map((v: any) => v.price) ?? [];
@@ -179,19 +257,16 @@ export class ProductDetail implements OnInit {
     return min === max ? `₹${min}` : `₹${min} – ₹${max}`;
   }
 
-  /** Selected variant ka stock */
   get currentStock(): number {
     return this.selectedVariant?.stock ?? 0;
   }
 
-  /** Kya poora product out of stock hai */
   get isFullyOutOfStock(): boolean {
     const variants = this.product?.variants;
     if (!variants?.length) return false;
     return variants.every((v: any) => v.stock === 0);
   }
 
-  /** Selected size out of stock hai */
   get isSelectedOutOfStock(): boolean {
     if (this.selectedVariant) return this.selectedVariant.stock === 0;
     return this.isFullyOutOfStock;
@@ -217,17 +292,13 @@ export class ProductDetail implements OnInit {
 
   selectSize(size: string): void {
     this.selectedSize = size;
-    this.qty = 1; // reset qty on size change
+    this.qty = 1;
   }
 
   selectColor(color: string): void { this.selectedColor = color; }
 
-  incrementQty(): void {
-    if (this.qty < this.currentStock) this.qty++;
-  }
-  decrementQty(): void {
-    if (this.qty > 1) this.qty--;
-  }
+  incrementQty(): void { if (this.qty < this.currentStock) this.qty++; }
+  decrementQty(): void { if (this.qty > 1) this.qty--; }
 
   // ─────────────────────────────────────────────
   // CART
@@ -236,7 +307,7 @@ export class ProductDetail implements OnInit {
   addToCart(): void {
     if (!this.product) return;
     console.log('Add to cart:', {
-      productId: this.product.id,
+      productId: this.currentProductId,
       variantId: this.selectedVariant?.id,
       name:      this.product.name,
       price:     this.selectedVariant?.price,

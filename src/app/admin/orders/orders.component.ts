@@ -1,20 +1,23 @@
 // admin/orders/orders.component.ts
-import { Component, OnInit } from '@angular/core';
-import { CommonModule }      from '@angular/common';
-import { FormsModule }       from '@angular/forms';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule }                 from '@angular/common';
+import { FormsModule }                  from '@angular/forms';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Router }            from '@angular/router';
-import { environment }       from '../../../environments/environments';
+import { Router }                       from '@angular/router';
+import { Subject }                      from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { environment }                  from '../../../environments/environments';
 
 export interface OrderSummaryDto {
-  orderId:       number;
-  name:          string;
-  phone:         number | null;
-  amount:        number;
-  paymentStatus: string;
-  orderStatus:   string;
-  createdAt:     string;
-  trckngKey?:    string;
+  orderId:          number;
+  name:             string;
+  phone:            number | null;
+  amount:           number;
+  paymentStatus:    string;
+  orderStatus:      string;
+  trckngKey?:       string;
+  dtOfOps?:         number;
+  updatedDtOfOps?:  number;
 }
 
 interface PageResponse<T> {
@@ -25,8 +28,6 @@ interface PageResponse<T> {
   size:          number;
 }
 
-interface StatusOption { value: string; label: string; }
-
 @Component({
   selector:     'app-admin-orders',
   standalone:   true,
@@ -34,22 +35,24 @@ interface StatusOption { value: string; label: string; }
   templateUrl:  './orders.component.html',
   styleUrl:     './orders.component.css'
 })
-export class AdminOrdersComponent implements OnInit {
+export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   allOrders:      OrderSummaryDto[] = [];
   filteredOrders: OrderSummaryDto[] = [];
   pagedOrders:    OrderSummaryDto[] = [];
 
-  loading         = true;
-  error           = '';
-  dispatchedCount = 0;
+  loading        = true;
+  searchLoading  = false;
+  error          = '';
 
   searchQuery  = '';
-  filterStatus = '';
   dateFrom     = '';
+  isSearchMode = false;
 
-  sortField: 'orderId' | 'amount' | 'createdAt' = 'createdAt';
-  sortDir:   'asc' | 'desc'                      = 'desc';
+  pendingCount = 0;
+
+  sortField: 'orderId' | 'amount' | 'dtOfOps' = 'dtOfOps';
+  sortDir:   'asc' | 'desc'                    = 'desc';
 
   currentPage   = 0;
   pageSize      = 10;
@@ -59,26 +62,57 @@ export class AdminOrdersComponent implements OnInit {
   endIndex      = 0;
   pageNumbers:  number[] = [];
 
-  allStatuses: StatusOption[] = [
-    { value: 'PENDING',    label: 'Pending'    },
-    { value: 'CONFIRMED',  label: 'Confirmed'  },
-    { value: 'DISPATCHED', label: 'Dispatched' },
-    { value: 'DELIVERED',  label: 'Delivered'  },
-    { value: 'CANCELLED',  label: 'Cancelled'  },
-  ];
+  copiedKey = '';
+
+  private searchSubject = new Subject<string>();
 
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
     this.loadOrders();
-    this.loadDispatchedCount();
+    this.loadPendingCount();
+
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(query => {
+      this.currentPage = 0;
+      if (query.trim()) {
+        this.searchOrders(query.trim());
+      } else {
+        this.isSearchMode = false;
+        this.loadOrders();
+      }
+    });
   }
 
-  // ── Main orders list ─────────────────────────────────────────
+  ngOnDestroy(): void {
+    this.searchSubject.complete();
+  }
+
+  // ── Pending Count ────────────────────────────────────────────
+
+  private loadPendingCount(): void {
+    const params = new HttpParams()
+      .set('status', 'PENDING')
+      .set('page', '0')
+      .set('size', '1');
+
+    this.http.get<PageResponse<OrderSummaryDto>>(
+      `${environment.apiUrl}/admin/orders`,
+      { headers: this.authHeaders(), params }
+    ).subscribe({
+      next:  (res) => { this.pendingCount = res.totalElements; },
+      error: ()    => { this.pendingCount = 0; }
+    });
+  }
+
+  // ── Normal orders list ───────────────────────────────────────
 
   loadOrders(): void {
-    this.loading = true;
-    this.error   = '';
+    this.loading      = true;
+    this.isSearchMode = false;
+    this.error        = '';
 
     let params = new HttpParams()
       .set('status', 'PENDING')
@@ -103,7 +137,7 @@ export class AdminOrdersComponent implements OnInit {
         this.totalPages    = res.totalPages;
         this.startIndex    = this.currentPage * this.pageSize;
         this.endIndex      = this.startIndex + res.content.length;
-        this.applyFilters();
+        this.applySort();
         this.buildPageNumbers();
         this.loading = false;
       },
@@ -114,80 +148,121 @@ export class AdminOrdersComponent implements OnInit {
     });
   }
 
-  // ── Dispatched count — size=1, sirf totalElements chahiye ───
+  // ── Search API ── GET /admin/orders?trckngKey=...&status=PENDING ──
 
-  private loadDispatchedCount(): void {
+  private searchOrders(keyword: string): void {
+    this.searchLoading = true;
+    this.error         = '';
+
     const params = new HttpParams()
-      .set('status', 'DISPATCHED')
-      .set('page', '0')
-      .set('size', '1');
+      .set('trckngKey', keyword)
+      .set('status', 'PENDING')
+      .set('page', String(this.currentPage))
+      .set('size', String(this.pageSize))
 
     this.http.get<PageResponse<OrderSummaryDto>>(
       `${environment.apiUrl}/admin/orders`,
       { headers: this.authHeaders(), params }
     ).subscribe({
-      next:  (res) => { this.dispatchedCount = res.totalElements; },
-      error: ()    => { this.dispatchedCount = 0; }   // silently fail
+      next: (res) => {
+        this.isSearchMode  = true;
+        this.allOrders     = res.content;
+        this.totalElements = res.totalElements;
+        this.totalPages    = res.totalPages;
+        this.startIndex    = this.currentPage * this.pageSize;
+        this.endIndex      = this.startIndex + res.content.length;
+        this.applySort();
+        this.buildPageNumbers();
+        this.searchLoading = false;
+      },
+      error: (err) => {
+        this.error         = err.error?.message || 'Search failed.';
+        this.searchLoading = false;
+      }
     });
   }
 
-  // ── Filters & Sort ───────────────────────────────────────────
+  // ── Search input handler ─────────────────────────────────────
 
-  applyFilters(): void {
-    let list = [...this.allOrders];
-
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.toLowerCase();
-      list = list.filter(o =>
-        String(o.orderId).includes(q) ||
-        o.name?.toLowerCase().includes(q) ||
-        String(o.phone || '').includes(q)
-      );
-    }
-
-    if (this.filterStatus) {
-      list = list.filter(o => o.orderStatus === this.filterStatus);
-    }
-
-    list.sort((a, b) => {
-      let va: any, vb: any;
-      if (this.sortField === 'orderId')   { va = a.orderId; vb = b.orderId; }
-      if (this.sortField === 'amount')    { va = a.amount;  vb = b.amount; }
-      if (this.sortField === 'createdAt') { va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); }
-      return this.sortDir === 'asc'
-        ? (va < vb ? -1 : va > vb ? 1 : 0)
-        : (va > vb ? -1 : va < vb ? 1 : 0);
-    });
-
-    this.filteredOrders = list;
-    this.pagedOrders    = list;
+  onSearchInput(): void {
+    this.searchSubject.next(this.searchQuery);
   }
 
-  clearFilters(): void {
+  clearSearch(): void {
     this.searchQuery  = '';
-    this.filterStatus = '';
-    this.dateFrom     = '';
+    this.isSearchMode = false;
     this.currentPage  = 0;
     this.loadOrders();
   }
 
-  sort(field: 'orderId' | 'amount' | 'createdAt'): void {
-    this.sortDir   = this.sortField === field && this.sortDir === 'asc' ? 'desc' : 'asc';
-    this.sortField = field;
-    this.applyFilters();
+  // ── Sort ─────────────────────────────────────────────────────
+
+  applySort(): void {
+    const list = [...this.allOrders];
+    list.sort((a, b) => {
+      let va: any, vb: any;
+      if (this.sortField === 'orderId') { va = a.orderId;      vb = b.orderId; }
+      if (this.sortField === 'amount')  { va = a.amount;       vb = b.amount; }
+      if (this.sortField === 'dtOfOps') { va = a.dtOfOps ?? 0; vb = b.dtOfOps ?? 0; }
+      return this.sortDir === 'asc'
+        ? (va < vb ? -1 : va > vb ? 1 : 0)
+        : (va > vb ? -1 : va < vb ? 1 : 0);
+    });
+    this.filteredOrders = list;
+    this.pagedOrders    = list;
   }
 
-  // ── Date ─────────────────────────────────────────────────────
+  sort(field: 'orderId' | 'amount' | 'dtOfOps'): void {
+    this.sortDir   = this.sortField === field && this.sortDir === 'asc' ? 'desc' : 'asc';
+    this.sortField = field;
+    this.applySort();
+  }
+
+  clearFilters(): void {
+    this.searchQuery  = '';
+    this.dateFrom     = '';
+    this.isSearchMode = false;
+    this.currentPage  = 0;
+    this.loadOrders();
+  }
+
+  // ── Date helpers ─────────────────────────────────────────────
+
+  formatDtOfOps(val: number | undefined): string {
+    if (!val) return '—';
+    const s   = String(val);
+    const yr  = s.slice(0, 4);
+    const mo  = s.slice(4, 6);
+    const day = s.slice(6, 8);
+    const d   = new Date(`${yr}-${mo}-${day}`);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
 
   onDateChange():    void { this.currentPage = 0; this.loadOrders(); }
   clearDateFilter(): void { this.dateFrom = ''; this.currentPage = 0; this.loadOrders(); }
+
+  // ── Tracking Key Copy ────────────────────────────────────────
+
+  copyTrackingKey(event: MouseEvent, key: string): void {
+    event.stopPropagation();
+    if (!key) return;
+    navigator.clipboard.writeText(key).then(() => {
+      this.copiedKey = key;
+      setTimeout(() => { this.copiedKey = ''; }, 2000);
+    });
+  }
 
   // ── Pagination ───────────────────────────────────────────────
 
   goToPage(page: number): void {
     if (page < 0 || page >= this.totalPages) return;
     this.currentPage = page;
-    this.loadOrders();
+    if (this.isSearchMode && this.searchQuery.trim()) {
+      this.searchOrders(this.searchQuery.trim());
+    } else {
+      this.loadOrders();
+    }
   }
 
   onPageSizeChange(): void { this.currentPage = 0; this.loadOrders(); }
@@ -209,22 +284,6 @@ export class AdminOrdersComponent implements OnInit {
 
   // ── Actions ──────────────────────────────────────────────────
 
-  dispatchOrder(order: OrderSummaryDto): void {
-    if (!confirm(`Mark order #${order.orderId} as dispatched?`)) return;
-
-    this.http.post<string>(
-      `${environment.apiUrl}/admin/dispatch/${order.orderId}`, {},
-      { headers: this.authHeaders() }
-    ).subscribe({
-      next: () => {
-        order.orderStatus = 'DISPATCHED';
-        this.dispatchedCount++;        // chip instantly update
-        this.applyFilters();
-      },
-      error: (err) => { this.error = err.error || 'Failed to dispatch order.'; }
-    });
-  }
-
   cancelOrder(order: OrderSummaryDto): void {
     if (!confirm(`Cancel order #${order.orderId}?`)) return;
 
@@ -236,7 +295,8 @@ export class AdminOrdersComponent implements OnInit {
     ).subscribe({
       next: () => {
         order.orderStatus = 'CANCELLED';
-        this.applyFilters();
+        this.pendingCount = Math.max(0, this.pendingCount - 1);
+        this.applySort();
       },
       error: (err) => { this.error = err.error?.message || 'Could not cancel order.'; }
     });

@@ -5,19 +5,19 @@
   <div class="top-bar">
     <div class="top-bar-left">
 
-      <div class="search-wrap">
+      <div class="search-wrap" [class.searching]="searchLoading">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
         </svg>
         <input class="search-input" type="text"
-               placeholder="Search by order ID, name, phone..."
-               [(ngModel)]="searchQuery" (input)="applyFilters()">
-        <button class="search-clear" *ngIf="searchQuery"
-                (click)="searchQuery=''; applyFilters()">✕</button>
+               placeholder="Search by tracking key..."
+               [(ngModel)]="searchQuery" (input)="onSearchInput()">
+        <span class="search-spinner" *ngIf="searchLoading"></span>
+        <button class="search-clear" *ngIf="searchQuery && !searchLoading"
+                (click)="clearSearch()">✕</button>
       </div>
 
-      <!-- Dispatched indicator chip -->
       <div class="dispatched-chip">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -29,7 +29,6 @@
 
     </div>
 
-    <!-- Total count chip -->
     <div class="stat-chips">
       <div class="stat-chip" style="background:rgba(139,92,246,0.1);color:#6d28d9;">
         <span class="chip-val">{{ totalElements }}</span>
@@ -60,7 +59,13 @@
 
     <div class="table-meta">
       <span class="results-info">
-        Showing {{ startIndex + 1 }}–{{ endIndex }} of {{ totalElements }} dispatched orders
+        <ng-container *ngIf="isSearchMode">
+          {{ totalElements }} result{{ totalElements !== 1 ? 's' : '' }} for
+          <span class="search-keyword-tag">"{{ searchQuery }}"</span>
+        </ng-container>
+        <ng-container *ngIf="!isSearchMode">
+          Showing {{ startIndex + 1 }}–{{ endIndex }} of {{ totalElements }} dispatched orders
+        </ng-container>
       </span>
       <div class="page-size-wrap">
         <span>Show</span>
@@ -73,7 +78,6 @@
       </div>
     </div>
 
-    <!-- Table -->
     <div class="table-wrap" *ngIf="pagedOrders.length > 0">
       <table>
         <thead>
@@ -93,10 +97,10 @@
               </span>
             </th>
             <th>Payment</th>
-            <th class="sortable" (click)="sort('createdAt')">
+            <th class="sortable" (click)="sort('dtOfOps')">
               Date
-              <span class="sort-arrow" [class.active]="sortField==='createdAt'">
-                {{ sortDir==='asc' && sortField==='createdAt' ? '↑' : '↓' }}
+              <span class="sort-arrow" [class.active]="sortField==='dtOfOps'">
+                {{ sortDir==='asc' && sortField==='dtOfOps' ? '↑' : '↓' }}
               </span>
             </th>
             <th>Status</th>
@@ -114,17 +118,33 @@
             <td>
               <div class="customer-cell">
                 <span class="customer-name">{{ order.name }}</span>
-                <span class="customer-email">{{ order.email }}</span>
+                <span class="customer-email" *ngIf="order.email">{{ order.email }}</span>
               </div>
             </td>
 
             <td>
-              <span class="tracking-key" *ngIf="order.trckngKey; else noKey">
-                {{ order.trckngKey }}
-              </span>
-              <ng-template #noKey>
-                <span class="tracking-empty">—</span>
-              </ng-template>
+              <div class="tracking-cell" (click)="$event.stopPropagation()">
+                <span class="tracking-key" *ngIf="order.trckngKey">{{ order.trckngKey }}</span>
+                <span class="tracking-empty" *ngIf="!order.trckngKey">—</span>
+                <button
+                  *ngIf="order.trckngKey"
+                  class="copy-btn"
+                  [class.copied]="copiedKey === order.trckngKey"
+                  (click)="copyTrackingKey($event, order.trckngKey!)"
+                  title="Copy tracking key">
+                  <svg *ngIf="copiedKey !== order.trckngKey" width="13" height="13" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                  <svg *ngIf="copiedKey === order.trckngKey" width="13" height="13" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="2.5"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
             </td>
 
             <td class="price-cell">₹{{ order.amount | number:'1.0-0' }}</td>
@@ -138,8 +158,10 @@
             </td>
 
             <td class="date-cell">
-              <span class="date-main">{{ order.createdAt | date:'dd MMM yyyy' }}</span>
-              <span class="date-time">{{ order.createdAt | date:'h:mm a' }}</span>
+              <span class="date-main">{{ formatDtOfOps(order.dtOfOps) }}</span>
+              <span class="date-time" *ngIf="order.updatedDtOfOps && order.updatedDtOfOps !== order.dtOfOps">
+                Upd: {{ formatDtOfOps(order.updatedDtOfOps) }}
+              </span>
             </td>
 
             <td>
@@ -148,6 +170,8 @@
 
             <td>
               <div class="action-btns" (click)="$event.stopPropagation()">
+
+                <!-- View -->
                 <button class="btn-icon view" (click)="openDetail(order)" title="View Details">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2"
@@ -156,6 +180,20 @@
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 </button>
+
+                <!-- Mark Delivered -->
+                <button class="btn-icon deliver"
+                        (click)="markDelivered($event, order)"
+                        [disabled]="deliveringId === order.orderId"
+                        title="Mark as Delivered">
+                  <span *ngIf="deliveringId === order.orderId" class="btn-spinner"></span>
+                  <svg *ngIf="deliveringId !== order.orderId" width="15" height="15"
+                       viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+
               </div>
             </td>
 
@@ -164,14 +202,12 @@
       </table>
     </div>
 
-    <!-- Empty state -->
     <div class="empty-state" *ngIf="pagedOrders.length === 0 && !loading">
       <span class="empty-icon">🚚</span>
       <h3>No dispatched orders yet</h3>
       <p>Orders will appear here once they are marked as dispatched</p>
     </div>
 
-    <!-- Pagination -->
     <div class="pagination" *ngIf="totalPages > 1">
       <button class="pg-btn" (click)="goToPage(0)"             [disabled]="currentPage===0">«</button>
       <button class="pg-btn" (click)="goToPage(currentPage-1)" [disabled]="currentPage===0">‹</button>

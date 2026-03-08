@@ -51,4 +51,23 @@ export class ProductService {
   deleteProduct(id: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/admin/product/${id}`);
   }
+
+  // ─── Reviews ────────────────────────────────
+
+  // Product ke saare reviews fetch karna (jab backend ready ho)
+  getReviewsByProduct(productId: number): Observable<any[]> {
+    return of([]); // GET endpoint abhi backend mein nahi hai
+  }
+
+  // Naya review submit karna — POST /api/review/post-review
+  submitReview(payload: {
+    productId: number;
+    reviewerName: string;
+    reviewMsg: string;
+    rating: number;
+  }): Observable<string> {
+    return this.http.post(`${environment.apiUrl}/review/post-review`, payload, {
+      responseType: 'text'
+    });
+  }
 }

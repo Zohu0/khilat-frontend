@@ -19,7 +19,9 @@ body { font-family: 'DM Sans', sans-serif; }
   position: relative; display: flex; align-items: center;
   background: #ffffff; border: 1.5px solid rgba(90,74,74,0.14);
   border-radius: 10px; min-width: 240px; flex: 1; max-width: 340px;
+  transition: border-color 0.2s ease;
 }
+.search-wrap.searching { border-color: #8b5cf6; }
 .search-icon { position: absolute; left: 12px; color: #9A8A8A; pointer-events: none; }
 .search-input {
   width: 100%; padding: 10px 36px 10px 38px;
@@ -29,7 +31,15 @@ body { font-family: 'DM Sans', sans-serif; }
 .search-input::placeholder { color: #9A8A8A; }
 .search-clear { position: absolute; right: 10px; background: none; border: none; color: #9A8A8A; cursor: pointer; }
 
-/* Dispatched chip */
+.search-spinner {
+  position: absolute; right: 10px;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(139,92,246,0.2);
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
 .dispatched-chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 10px;
@@ -40,10 +50,16 @@ body { font-family: 'DM Sans', sans-serif; }
 .stat-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .stat-chip {
   display: flex; flex-direction: column; align-items: center;
-  padding: 8px 14px; border-radius: 10px; min-width: 64px;
+  padding: 8px 16px; border-radius: 10px; min-width: 72px;
 }
-.chip-val { font-size: 1.1rem; font-weight: 700; line-height: 1; }
+.chip-val { font-size: 1.15rem; font-weight: 700; line-height: 1; }
 .chip-lbl { font-size: 0.62rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; opacity: 0.75; }
+
+.search-keyword-tag {
+  font-weight: 600; color: #6d28d9;
+  background: rgba(139,92,246,0.1);
+  padding: 1px 8px; border-radius: 6px;
+}
 
 .error-alert {
   display: flex; align-items: center; gap: 10px;
@@ -96,32 +112,38 @@ td { font-size: 0.85rem; color: #5A4A4A; }
 @keyframes rowIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
 .order-id { font-weight: 700; color: #1C1C1C; font-family: 'Cormorant Garamond', serif; font-size: 1rem; }
-.customer-cell { display: flex; flex-direction: column; gap: 2px; }
+.customer-cell  { display: flex; flex-direction: column; gap: 2px; }
 .customer-name  { font-weight: 500; color: #1C1C1C; font-size: 0.88rem; }
 .customer-email { font-size: 0.72rem; color: #9A8A8A; }
 
-/* Tracking key styles */
+/* Tracking key + copy */
+.tracking-cell {
+  display: flex; align-items: center; gap: 6px;
+}
 .tracking-key {
-  display: inline-block;
-  font-size: 0.78rem;
-  font-family: monospace;
-  font-weight: 600;
-  background: rgba(139,92,246,0.08);
-  color: #6d28d9;
-  padding: 4px 10px;
-  border-radius: 6px;
-  letter-spacing: 0.04em;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline-block; font-size: 0.75rem;
+  font-family: 'Courier New', monospace; font-weight: 600;
+  background: rgba(139,92,246,0.08); color: #6d28d9;
+  padding: 4px 10px; border-radius: 6px;
+  letter-spacing: 0.04em; white-space: nowrap;
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis;
 }
 .tracking-empty { color: #9A8A8A; font-size: 0.85rem; }
 
-.price-cell     { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 600; color: #1C1C1C; }
-.date-cell      { display: flex; flex-direction: column; gap: 2px; }
-.date-main      { font-size: 0.83rem; color: #1C1C1C; font-weight: 500; }
-.date-time      { font-size: 0.7rem; color: #9A8A8A; }
+.copy-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1.5px solid rgba(90,74,74,0.14);
+  background: #ffffff; color: #9A8A8A;
+  cursor: pointer; flex-shrink: 0; transition: all 0.2s ease;
+}
+.copy-btn:hover { border-color: #8b5cf6; color: #6d28d9; background: rgba(139,92,246,0.06); }
+.copy-btn.copied { border-color: #16a34a; color: #16a34a; background: rgba(34,197,94,0.08); }
+
+.price-cell { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 600; color: #1C1C1C; }
+.date-cell  { display: flex; flex-direction: column; gap: 2px; }
+.date-main  { font-size: 0.83rem; color: #1C1C1C; font-weight: 500; }
+.date-time  { font-size: 0.7rem; color: #9A8A8A; }
 
 .status-badge      { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
 .status-DISPATCHED { background: rgba(139,92,246,0.1); color: #6d28d9; }
@@ -130,14 +152,27 @@ td { font-size: 0.85rem; color: #5A4A4A; }
 .pay-success   { background: rgba(34,197,94,0.1);   color: #15803d; }
 .pay-pending   { background: rgba(245,158,11,0.12); color: #b45309; }
 
+/* Action buttons */
 .action-btns { display: flex; align-items: center; gap: 6px; }
 .btn-icon {
   width: 32px; height: 32px; border: none; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.2s ease;
 }
-.btn-icon.view { background: rgba(59,130,246,0.08); color: #3b82f6; }
-.btn-icon.view:hover { background: rgba(59,130,246,0.18); transform: scale(1.1); }
+.btn-icon.view    { background: rgba(59,130,246,0.08);  color: #3b82f6; }
+.btn-icon.deliver { background: rgba(34,197,94,0.08);   color: #16a34a; }
+.btn-icon.view:hover:not(:disabled)    { background: rgba(59,130,246,0.18); transform: scale(1.1); }
+.btn-icon.deliver:hover:not(:disabled) { background: rgba(34,197,94,0.18);  transform: scale(1.1); }
+.btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Inline spinner inside deliver button */
+.btn-spinner {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(34,197,94,0.25);
+  border-top-color: #16a34a;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
 
 .empty-state { text-align: center; padding: 4rem 2rem; }
 .empty-icon  { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
@@ -156,3 +191,5 @@ td { font-size: 0.85rem; color: #5A4A4A; }
 .pg-btn.active   { background: #1C1C1C; color: white; border-color: #1C1C1C; }
 .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .pg-btn.ellipsis { border: none; background: none; cursor: default; }
+
+@media (max-width: 768px) { .stat-chips { display: none; } }
