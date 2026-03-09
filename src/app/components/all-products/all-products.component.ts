@@ -144,8 +144,9 @@ export class AllProductsComponent implements OnInit, OnDestroy {
   // FILTERS
   // ─────────────────────────────────────────────
 
-  onSearchInput(): void {
-    this.searchSubject.next(this.filters.keyword);
+  onSearchInput(keyword: string): void {
+    this.filters.keyword = keyword;
+    this.searchSubject.next(keyword);
   }
 
   clearSearch(): void {

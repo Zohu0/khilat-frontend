@@ -20,7 +20,7 @@
       [maxPrice]="filters.maxPrice"
       [hasActiveFilters]="hasActiveFilters"
       (closeFilter)="filterOpen = false"
-      (searchInput)="onSearchInput()"
+      (searchInput)="onSearchInput($event)"
       (clearSearch)="clearSearch()"
       (categoryChange)="setCategory($event)"
       (priceChange)="onPriceChange($event)"

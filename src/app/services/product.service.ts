@@ -1,9 +1,26 @@
 // src/app/services/product.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { Product } from '../models/product.model';
 import { environment } from '../../environments/environments';
+
+export interface ProductPage {
+  content: Product[];
+  totalElements: number;
+  totalPages: number;
+  number: number;        // current page
+  size: number;
+}
+
+export interface ProductFilterParams {
+  keyword?:  string | null;
+  category?: string | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  page?:     number;
+  size?:     number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ProductService {
@@ -20,9 +37,25 @@ export class ProductService {
     return this.http.get<Product[]>(`${environment.apiUrl}/product/latest`);
   }
 
-  // All products (products list page ke liye)
-  getAllProducts(): Observable<Product[]> {
-    return this.http.get<Product[]>(`${environment.apiUrl}/product/latest`);
+  /**
+   * All-products page ke liye — supports keyword / category / price filter + pagination
+   * Backend: GET /api/product/getallproducts
+   */
+  filterProducts(filters: ProductFilterParams = {}): Observable<ProductPage> {
+    let params = new HttpParams();
+
+    if (filters.keyword?.trim())  params = params.set('keyword',  filters.keyword.trim());
+    if (filters.category?.trim()) params = params.set('category', filters.category.trim());
+    if (filters.minPrice != null) params = params.set('minPrice', filters.minPrice.toString());
+    if (filters.maxPrice != null) params = params.set('maxPrice', filters.maxPrice.toString());
+
+    params = params.set('page', (filters.page ?? 0).toString());
+    params = params.set('size', (filters.size ?? 10).toString());
+
+    return this.http.get<ProductPage>(
+      `${environment.apiUrl}/product/getallproducts`,
+      { params }
+    );
   }
 
   // ✅ FIXED: Correct backend endpoint
@@ -31,10 +64,8 @@ export class ProductService {
   }
 
   // Related products — same category ke products
-  // Backend mein ye API baad mein banegi, tab uncomment karna
   getProductsByCategory(categoryId: number): Observable<Product[]> {
     return this.http.get<Product[]>(`${environment.apiUrl}/product/by-category/${categoryId}`);
-    // Jab tak backend ready nahi: return of([]);
   }
 
   // Create product
@@ -54,12 +85,10 @@ export class ProductService {
 
   // ─── Reviews ────────────────────────────────
 
-  // Product ke saare reviews fetch karna (jab backend ready ho)
   getReviewsByProduct(productId: number): Observable<any[]> {
-    return of([]); // GET endpoint abhi backend mein nahi hai
+    return of([]);
   }
 
-  // Naya review submit karna — POST /api/review/post-review
   submitReview(payload: {
     productId: number;
     reviewerName: string;

@@ -27,8 +27,10 @@
         class="search-input"
         placeholder="Search products..."
         [(ngModel)]="keyword"
-        (input)="searchInput.emit(keyword)" />
-      <button class="search-clear" *ngIf="keyword" (click)="clearSearch.emit()">×</button>
+        (input)="onSearchInput()" />
+      <!-- ✅ sirf clear icon dikhega, clear hone pe parent ko bhi notify -->
+      <button class="search-clear" *ngIf="keyword"
+        (click)="keyword = ''; clearSearch.emit()">×</button>
     </div>
   </div>
 
