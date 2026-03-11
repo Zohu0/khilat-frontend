@@ -48,7 +48,7 @@ export class Cart implements OnInit, OnDestroy {
 
   // ── Error Message Helper ────────────────────────────────────────────────────
 
-  private showItemError(cartItemId: number, msg: string): void {
+  showItemError(cartItemId: number, msg: string): void {
     this.itemErrors = { ...this.itemErrors, [cartItemId]: msg };
     clearTimeout(this.errorTimers[cartItemId]);
     this.errorTimers[cartItemId] = setTimeout(() => {
@@ -61,14 +61,13 @@ export class Cart implements OnInit, OnDestroy {
 
   increment(item: CartItem): void {
     if (item.quantity >= item.stockAvailable) {
-      this.showItemError(item.cartItemId, `Only ${item.stockAvailable} in stock.`);
+      this.showItemError(item.cartItemId, `Only ${item.stockAvailable} in stock — that's the max!`);
       return;
     }
     this.cartService.increment(item.variantId);
   }
 
   decrement(item: CartItem): void {
-    // qty=1 pe bhi allow — service PUT decrease → backend delete karega
     this.cartService.decrement(item.variantId);
   }
 

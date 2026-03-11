@@ -51,6 +51,8 @@ export class ProductCardComponent implements OnInit {
     if (this.localQty < maxStock) {
       this.localQty++;
       this.increment.emit(this.product?.id);
+    } else {
+      this.showError(`Only ${maxStock} in stock — that's the max you can add!`);
     }
   }
 
@@ -144,7 +146,16 @@ export class ProductCardComponent implements OnInit {
       },
       error: (err: any) => {
         this.cartState = 'idle';
-        const msg = err?.error?.message || err?.error?.error || 'Could not add to cart. Please try again.';
+        const raw = err?.error?.message ?? err?.error?.error ?? err?.error ?? '';
+        const backendMsg = (typeof raw === 'string' && raw.trim().length > 0) ? raw.trim().toLowerCase() : '';
+
+        let msg = 'Could not add to cart. Please try again.';
+        if (backendMsg.includes('insufficient stock') || backendMsg.includes('stock')) {
+          const available = this.selectedVariant?.stock ?? 0;
+          msg = available > 0
+            ? `Only ${available} left in stock — reduce quantity and try again.`
+            : `This size is now out of stock.`;
+        }
         this.showError(msg);
       }
     });

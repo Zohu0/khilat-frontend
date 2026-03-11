@@ -48,7 +48,7 @@
 .policy-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem,4vw,2.8rem); font-weight: 500; color: rgba(255,245,228,0.92); margin-bottom: 0.75rem; letter-spacing: 0.01em; }
 .policy-subtitle { font-size: 0.88rem; font-weight: 300; color: rgba(255,245,228,0.35); max-width: 520px; margin: 0 auto; line-height: 1.7; }
 
-.policy-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.25rem; margin-bottom: 2.5rem; }
+.policy-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.25rem; margin-bottom: 2.5rem; max-width: 760px; margin-left: auto; margin-right: auto; }
 .policy-card { background: rgba(255,245,228,0.04); border: 1px solid rgba(255,148,148,0.10); border-radius: 22px; padding: 2rem 1.8rem; transition: background 0.3s ease, transform 0.3s ease, border-color 0.3s ease; position: relative; overflow: hidden; }
 .policy-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; opacity:0; transition:opacity 0.3s ease; border-radius:22px 22px 0 0; }
 .policy-card:hover { background: rgba(255,245,228,0.07); transform: translateY(-4px); border-color: rgba(255,148,148,0.2); }
@@ -260,5 +260,5 @@
 .faq-item p { font-size: 0.84rem; font-weight: 300; line-height: 1.75; color:  #9A8A8A; }
 
 /* ══ RESPONSIVE ══ */
-@media (max-width: 1024px) { .contact-inner { grid-template-columns: 1fr; gap: 3rem; } .policy-grid { grid-template-columns: 1fr; } .faq-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .contact-inner { grid-template-columns: 1fr; gap: 3rem; } .policy-grid { grid-template-columns: 1fr; max-width: 480px; } .faq-grid { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .hero { min-height: 75vh; padding: 5rem 1.5rem 4rem; } .contact-section, .faq-section, .policy-section { padding: 5rem 1.5rem; } .form-col { padding: 2rem 1.4rem; } .brand-card { padding: 1.8rem 1.4rem; } .popup-box { padding: 2rem 1.5rem; } .popup-actions { flex-direction: column; } }

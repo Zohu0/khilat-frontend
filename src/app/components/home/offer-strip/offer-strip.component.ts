@@ -10,12 +10,12 @@ import { CommonModule } from '@angular/common';
   styleUrl: './offer-strip.component.css',
 })
 export class OfferStripComponent {
-  readonly offerItems = [
-    'Free Shipping above ₹999',
-    'Easy 7-day Returns',
-    'Authentic Handcrafted Designs',
-    'New Arrivals Every Week',
-    'COD Available',
-    'Secure Payments',
-  ];
+ readonly offerItems = [
+  'Authentic Lucknowi Chikankari Craft',
+  'Handcrafted by Skilled Artisans',
+  'Premium Quality Fabrics',
+  'Exclusive Limited Edition Designs',
+  'Elegant Styles for Every Occasion',
+  'Your Every-Day Fashion',
+];
 }

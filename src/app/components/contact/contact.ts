@@ -61,7 +61,20 @@ export class Contact implements AfterViewInit {
         error: (err) => {
           this.sending = false;
           const status  = err?.status;
-          const message = (err?.error?.message ?? err?.error ?? '').toString().toLowerCase();
+          const raw     = typeof err?.error === 'string' && err.error.length > 0
+                            ? err.error
+                            : (err?.error?.message ?? err?.message ?? '');
+          const message = String(raw).toLowerCase();
+          console.log('ERR OBJECT:', err);
+          console.log('RAW:', raw);
+          console.log('MESSAGE:', message);
+
+          // Order already successfully cancelled
+          if (status === 400 && message.includes('cancelled')) {
+            this.sending   = false;
+            this.submitted = true;
+            return;
+          }
 
           // Order already dispatched — show popup
           if (status === 400 && (

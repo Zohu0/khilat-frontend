@@ -25,7 +25,7 @@ export class WhyUsComponent {
       },
       {
         title: 'Free Delivery',
-        desc:  'Enjoy free shipping on all orders above ₹999. Pan India delivery with real-time tracking.',
+        desc:  'Enjoy free shipping on all orders. Pan India delivery with real-time tracking.',
         svg: this.safe(`
           <rect x="1" y="3" width="15" height="13" rx="1"/>
           <path d="M16 8h4l3 5v3h-7V8z"/>
