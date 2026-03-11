@@ -27,7 +27,14 @@ export interface CheckoutForm {
   pincode:       string;
 }
 
-declare var Stripe: any;
+// Tera backend CheckoutResponse ke fields
+export interface CheckoutResponse {
+  razorpayOrderId: string;   // Razorpay ka order_id
+  amount:          number;   // paise mein ya rupees — backend se match karo
+  currency:        string;
+}
+
+declare var Razorpay: any;
 
 @Component({
   selector:    'app-checkout',
@@ -50,7 +57,7 @@ export class Checkout implements OnInit, OnDestroy {
   shipping  = 0;
   total     = 0;
 
-  // Form state (shared across steps)
+  // Form state
   form: CheckoutForm = {
     fullName: '', email: '', phone: '',
     addressLine1: '', addressLine2: '',
@@ -59,10 +66,10 @@ export class Checkout implements OnInit, OnDestroy {
 
   currentStep: 1 | 2 = 1;
   errorMessage       = '';
-  loading            = false;   // step 1 loading (creating payment intent)
+  loading            = false;
 
-  // Stripe — owned here, passed to PaymentFormComponent
-  clientSecret = '';
+  // Razorpay — backend se aayega
+  razorpayOrderId = '';
 
   private cartSub!: Subscription;
 
@@ -81,46 +88,48 @@ export class Checkout implements OnInit, OnDestroy {
       this.calculateTotals();
     });
 
-    // Redirect if cart is empty
     if (this.cartService.getTotalCount() === 0) {
       this.router.navigate(['/cart']);
     }
 
-    // Preload Stripe script early
-    this.preloadStripe();
+    // Razorpay script preload
+    this.preloadRazorpay();
   }
 
   ngOnDestroy(): void {
     this.cartSub?.unsubscribe();
   }
 
-  // ── Step 1: Shipping submitted → create payment intent ──────
+  // ── Step 1: Shipping submit → backend se Razorpay order ID lo ──
 
   onShippingSubmitted(formData: CheckoutForm): void {
     this.form         = formData;
     this.errorMessage = '';
     this.loading      = true;
 
+    // Tera backend OrderRequest ke hisaab se payload
     const payload = {
       guestId:  this.guestService.getGuestId(),
-      currency: 'inr',
+      amount:   this.total,              // backend amount * 100 karta hai paise ke liye
+      currency: 'INR',
       name:     this.form.fullName,
       address:  this.buildAddress(),
       email:    this.form.email,
       phone:    this.form.phone,
     };
 
-    this.http.post<{ clientSecret: string }>(
-      `${environment.apiUrl}/checkout/create-payment-intent`, payload
+    // Tera backend endpoint: POST /api/order/create-guestorder
+    this.http.post<CheckoutResponse>(
+      `${environment.apiUrl}/order/create-guestorder`, payload
     ).subscribe({
       next: (res) => {
-        this.loading = false;
-        if (!res?.clientSecret) {
-          this.errorMessage = 'Could not initiate payment. Please try again.';
+        this.loading         = false;
+        if (!res?.razorpayOrderId) {
+          this.errorMessage  = 'Could not initiate payment. Please try again.';
           return;
         }
-        this.clientSecret = res.clientSecret;
-        this.currentStep  = 2;
+        this.razorpayOrderId = res.razorpayOrderId;
+        this.currentStep     = 2;
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -130,12 +139,17 @@ export class Checkout implements OnInit, OnDestroy {
     });
   }
 
-  // ── Step 2: Payment result from PaymentFormComponent ────────
+  // ── Step 2: Razorpay popup se success aaya ───────────────────
+  // Webhook already DB mein order save kar deta hai
+  // Frontend ko sirf cart clear karke success page pe bhejna hai
 
-  onPaymentSuccess(paymentIntentId: string): void {
+  onPaymentSuccess(paymentData: { razorpay_payment_id: string }): void {
     this.cartService.clearCart().subscribe();
     this.router.navigate(['/order-success'], {
-      queryParams: { payment_intent: paymentIntentId, status: 'succeeded' }
+      queryParams: {
+        payment_id: paymentData.razorpay_payment_id,
+        status:     'succeeded'
+      }
     });
   }
 
@@ -145,9 +159,9 @@ export class Checkout implements OnInit, OnDestroy {
   }
 
   goBackToShipping(): void {
-    this.currentStep  = 1;
-    this.errorMessage = '';
-    this.clientSecret = ''; // force fresh secret on retry
+    this.currentStep     = 1;
+    this.errorMessage    = '';
+    this.razorpayOrderId = '';
     this.cdr.detectChanges();
   }
 
@@ -164,11 +178,11 @@ export class Checkout implements OnInit, OnDestroy {
     this.total    = +(this.subtotal + this.shipping).toFixed(2);
   }
 
-  private preloadStripe(): void {
-    if ((window as any).Stripe) return;
-    const s = document.createElement('script');
-    s.src   = 'https://js.stripe.com/v3/';
-    s.async = true;
+  private preloadRazorpay(): void {
+    if ((window as any).Razorpay) return;
+    const s    = document.createElement('script');
+    s.src      = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async    = true;
     document.head.appendChild(s);
   }
 }

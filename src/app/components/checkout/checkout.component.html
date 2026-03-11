@@ -25,11 +25,11 @@
           (formSubmitted)="onShippingSubmitted($event)">
         </app-shipping-form>
 
-        <!-- Step 2: Payment -->
+        <!-- Step 2: Payment — clientSecret HATA, razorpayOrderId DAALA -->
         <app-payment-form
           *ngIf="currentStep === 2"
           [form]="form"
-          [clientSecret]="clientSecret"
+          [razorpayOrderId]="razorpayOrderId"
           [total]="total"
           (goBack)="goBackToShipping()"
           (paymentSuccess)="onPaymentSuccess($event)"
