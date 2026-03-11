@@ -3,7 +3,7 @@ import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface OrderTrackingResponse {
-  status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'DISPATCHED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'DISPATCHED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
   name:   string;
   email:  string;
 }
@@ -32,7 +32,8 @@ const STATUS_META: Record<string, { label: string; desc: string }> = {
   DISPATCHED:       { label: 'Dispatched',        desc: 'Your order has been dispatched' },
   OUT_FOR_DELIVERY: { label: 'Out for Delivery',  desc: 'Your order is almost there!' },
   DELIVERED:        { label: 'Delivered',         desc: 'Enjoy your Khilat Kurti\'s purchase 🌸' },
-  CANCELLED:        { label: 'Cancelled',         desc: 'This order has been cancelled' }
+  CANCELLED:        { label: 'Cancelled',         desc: 'This order has been cancelled' },
+  REFUNDED:         { label: 'Refunded',          desc: 'Your refund has been processed successfully' }
 };
 
 @Component({
@@ -58,11 +59,20 @@ export class TrackOrderResultComponent implements OnChanges {
   private buildTimeline(): void {
     const current = this.orderData.status;
 
+    // Terminal states — show placed step as done, then the terminal step as active
     if (current === 'CANCELLED') {
-      // Show only two steps for cancelled
       this.timelineSteps = [
-        { label: STATUS_META['PENDING'].label, desc: STATUS_META['PENDING'].desc, done: true, active: false },
-        { label: 'Cancelled', desc: 'This order has been cancelled', done: false, active: true }
+        { label: STATUS_META['PENDING'].label,   desc: STATUS_META['PENDING'].desc,   done: true,  active: false },
+        { label: STATUS_META['CANCELLED'].label, desc: STATUS_META['CANCELLED'].desc, done: false, active: true  }
+      ];
+      return;
+    }
+
+    if (current === 'REFUNDED') {
+      this.timelineSteps = [
+        { label: STATUS_META['PENDING'].label,   desc: STATUS_META['PENDING'].desc,   done: true,  active: false },
+        { label: STATUS_META['CANCELLED'].label, desc: 'Order was cancelled',          done: true,  active: false },
+        { label: STATUS_META['REFUNDED'].label,  desc: STATUS_META['REFUNDED'].desc,  done: false, active: true  }
       ];
       return;
     }
@@ -87,7 +97,8 @@ export class TrackOrderResultComponent implements OnChanges {
       DISPATCHED:       'dispatched',
       OUT_FOR_DELIVERY: 'out-for-delivery',
       DELIVERED:        'delivered',
-      CANCELLED:        'cancelled'
+      CANCELLED:        'cancelled',
+      REFUNDED:         'refunded'
     };
     this.statusClass = classMap[s] ?? 'pending';
   }
