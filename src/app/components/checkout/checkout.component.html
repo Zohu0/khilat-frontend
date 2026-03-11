@@ -4,20 +4,16 @@
 
     <h1 class="page-title">Checkout</h1>
 
-    <!-- Step indicator -->
     <app-checkout-steps [currentStep]="currentStep"></app-checkout-steps>
 
-    <!-- Global error (step 1 API errors) -->
     <div class="global-error" *ngIf="errorMessage && currentStep === 1">
       {{ errorMessage }}
     </div>
 
     <div class="checkout-layout">
 
-      <!-- Left col -->
       <div class="left-col">
 
-        <!-- Step 1: Shipping -->
         <app-shipping-form
           *ngIf="currentStep === 1"
           [form]="form"
@@ -25,7 +21,6 @@
           (formSubmitted)="onShippingSubmitted($event)">
         </app-shipping-form>
 
-        <!-- Step 2: Payment — clientSecret HATA, razorpayOrderId DAALA -->
         <app-payment-form
           *ngIf="currentStep === 2"
           [form]="form"
@@ -38,7 +33,6 @@
 
       </div>
 
-      <!-- Right col: Order summary -->
       <app-order-summary
         [cartItems]="cartItems"
         [subtotal]="subtotal"

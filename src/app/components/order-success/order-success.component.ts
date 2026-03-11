@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule }      from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService }       from '../../services/cart.service';
+import { catchError, of }    from 'rxjs';
 
 @Component({
   selector:    'app-order-success',
@@ -13,12 +14,12 @@ import { CartService }       from '../../services/cart.service';
 })
 export class OrderSuccessComponent implements OnInit {
 
-  verifying     = true;
+  verifying       = true;
   paymentStatus: 'succeeded' | 'failed' | 'processing' = 'failed';
   paymentIntentId = '';
   orderId: string | null = null;
-  errorMessage  = '';
-  confettiDots  = Array(12).fill(0);
+  errorMessage    = '';
+  confettiDots    = Array(12).fill(0);
 
   constructor(
     private route:       ActivatedRoute,
@@ -28,44 +29,37 @@ export class OrderSuccessComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
-      const paymentIntent  = params['payment_intent']  || '';
-      const redirectStatus = params['redirect_status'] || ''; // Stripe redirect (UPI/netbanking)
-      const status         = params['status']          || ''; // Our card flow manual nav
 
-      // ── Case 1: Card payment — navigated manually with status=succeeded ──
-      if (status === 'succeeded' && paymentIntent) {
-        this.paymentIntentId = paymentIntent;
+      // Razorpay: checkout.component navigates with { payment_id, status }
+      const paymentId = params['payment_id'] || '';
+      const status    = params['status']     || '';
+
+      // ── SUCCESS: Razorpay payment confirmed ──
+      if (status === 'succeeded' && paymentId) {
+        this.paymentIntentId = paymentId;
         this.paymentStatus   = 'succeeded';
         this.verifying       = false;
-        this.cartService.clearCart().subscribe();
+        // Cart already cleared in checkout.component → clearCart here is a safety net
+        this.cartService.clearCart().pipe(catchError(() => of(null))).subscribe();
         return;
       }
 
-      // ── Case 2: Stripe redirect — succeeded (UPI, netbanking, etc.) ──
-      if (redirectStatus === 'succeeded' && paymentIntent) {
-        this.paymentIntentId = paymentIntent;
-        this.paymentStatus   = 'succeeded';
-        this.verifying       = false;
-        this.cartService.clearCart().subscribe();
-        return;
-      }
-
-      // ── Case 3: Stripe redirect — processing ──
-      if (redirectStatus === 'processing') {
+      // ── PROCESSING: payment captured but webhook pending ──
+      if (status === 'processing') {
         this.paymentStatus = 'processing';
         this.verifying     = false;
         return;
       }
 
-      // ── Case 4: Stripe redirect — failed/canceled ──
-      if (redirectStatus && redirectStatus !== 'succeeded' && redirectStatus !== 'processing') {
+      // ── FAILED: explicit failure ──
+      if (status === 'failed') {
         this.paymentStatus = 'failed';
         this.errorMessage  = 'Payment was not completed. No amount was charged.';
         this.verifying     = false;
         return;
       }
 
-      // ── Case 5: No valid params — direct URL access or unknown state ──
+      // ── UNKNOWN: direct URL access or missing params ──
       this.paymentStatus = 'failed';
       this.errorMessage  = 'No payment information found.';
       this.verifying     = false;

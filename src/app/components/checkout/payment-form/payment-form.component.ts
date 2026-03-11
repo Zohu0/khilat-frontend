@@ -21,53 +21,64 @@ export type ErrorType = 'declined' | 'validation' | 'generic' | null;
 export class PaymentFormComponent implements AfterViewInit, OnDestroy {
 
   @Input()  form!:            CheckoutForm;
-  @Input()  razorpayOrderId!: string;    // ← clientSecret ki jagah ye aaya
+  @Input()  razorpayOrderId!: string;
   @Input()  total = 0;
 
   @Output() goBack         = new EventEmitter<void>();
   @Output() paymentSuccess = new EventEmitter<{ razorpay_payment_id: string }>();
   @Output() paymentFailed  = new EventEmitter<string>();
 
-  // Razorpay popup instant ready hota hai — koi loading nahi
-  paymentReady  = true;
+  paymentReady   = true;
   paymentLoading = false;
-  errorMessage  = '';
-  errorType:    ErrorType = null;
+  errorMessage   = '';
+  errorType: ErrorType = null;
+
+  private paymentSucceeded = false;
+  private dismissTimer: any = null;
 
   constructor(private ngZone: NgZone, private cdr: ChangeDetectorRef) {}
 
   ngAfterViewInit(): void {}
-  ngOnDestroy(): void {}
 
-  // ── Razorpay Popup Open ───────────────────────────────────────
+  ngOnDestroy(): void {
+    if (this.dismissTimer) clearTimeout(this.dismissTimer);
+  }
 
   confirmPayment(): void {
     if (this.paymentLoading) return;
 
-    this.paymentLoading = true;
-    this.errorMessage   = '';
-    this.errorType      = null;
+    this.paymentLoading   = true;
+    this.errorMessage     = '';
+    this.errorType        = null;
+    this.paymentSucceeded = false;
+
+    if (this.dismissTimer) {
+      clearTimeout(this.dismissTimer);
+      this.dismissTimer = null;
+    }
 
     const options = {
       key:         environment.razorpayKeyId,
-      amount:      this.total * 100,          // paise mein (backend bhi karta hai but frontend ke liye)
+      amount:      this.total * 100,
       currency:    'INR',
       name:        'Khilat Kurtis',
       description: 'Order Payment',
-      order_id:    this.razorpayOrderId,      // backend se aaya Razorpay Order ID
+      order_id:    this.razorpayOrderId,
       prefill: {
         name:    this.form.fullName,
         email:   this.form.email,
         contact: this.form.phone,
       },
       theme: {
-        color: '#FF9494'                      // tera brand color
+        color: '#FF9494'
       },
 
-      // ── Payment SUCCESS ──
-      // Note: Webhook already /api/razorpay/webhook se order DB mein save kar dega
-      // Frontend ko sirf payment_id chahiye success page ke liye
       handler: (response: any) => {
+        this.paymentSucceeded = true;
+        if (this.dismissTimer) {
+          clearTimeout(this.dismissTimer);
+          this.dismissTimer = null;
+        }
         this.ngZone.run(() => {
           this.paymentLoading = false;
           this.paymentSuccess.emit({
@@ -77,15 +88,22 @@ export class PaymentFormComponent implements AfterViewInit, OnDestroy {
         });
       },
 
-      // ── User ne popup band kiya (cancel) ──
       modal: {
         ondismiss: () => {
-          this.ngZone.run(() => {
-            this.paymentLoading = false;
-            this.errorType      = 'generic';
-            this.errorMessage   = 'Payment cancelled. Please try again.';
-            this.cdr.detectChanges();
-          });
+          // NET BANKING FIX:
+          // Punjab Bank aur doosre net banking flows mein Razorpay popup close
+          // ho jaata hai (ondismiss fire) PEHLE jab bank redirect complete ho —
+          // handler baad mein fire hota hai. Isliye 3 second ka grace period diya
+          // hai — agar handler fire ho gaya to dismissTimer cancel ho jaayega.
+          this.dismissTimer = setTimeout(() => {
+            if (this.paymentSucceeded) return;
+            this.ngZone.run(() => {
+              this.paymentLoading = false;
+              this.errorType      = 'generic';
+              this.errorMessage   = 'Payment cancelled or not completed. If your amount was deducted, it will be refunded within 5–7 business days.';
+              this.cdr.detectChanges();
+            });
+          }, 3000);
         }
       }
     };
@@ -93,8 +111,11 @@ export class PaymentFormComponent implements AfterViewInit, OnDestroy {
     try {
       const rzp = new Razorpay(options);
 
-      // ── Payment FAIL event ──
       rzp.on('payment.failed', (response: any) => {
+        if (this.dismissTimer) {
+          clearTimeout(this.dismissTimer);
+          this.dismissTimer = null;
+        }
         this.ngZone.run(() => {
           this.paymentLoading = false;
           this.errorType      = 'declined';
