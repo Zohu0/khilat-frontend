@@ -65,12 +65,21 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   copiedKey = '';
 
+  // ── Confirm Popup ───────────────────────────────────────────
+  showConfirmPopup    = false;
+  private pendingDispatchOrder: OrderSummaryDto | null = null;
+
+  // ── Success Popup ───────────────────────────────────────────
+  showDispatchPopup   = false;
+  dispatchedOrderId   = 0;
+  dispatchedOrderName = '';
+  private popupTimer: any;
+
   private searchSubject = new Subject<string>();
 
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
-    // ✅ Sirf ek hi call — loadOrders() hi pendingCount bhi set karta hai
     this.loadOrders();
 
     this.searchSubject.pipe(
@@ -87,7 +96,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void { this.searchSubject.complete(); }
+  ngOnDestroy(): void {
+    this.searchSubject.complete();
+    clearTimeout(this.popupTimer);
+  }
 
   // ── Normal orders list ────────────────────────────────────────
 
@@ -119,10 +131,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.totalPages    = res.totalPages;
         this.startIndex    = this.currentPage * this.pageSize;
         this.endIndex      = this.startIndex + res.content.length;
-
-        // ✅ Same response se pendingCount set — alag API call nahi chahiye
         this.pendingCount  = res.totalElements;
-
         this.applySort();
         this.buildPageNumbers();
         this.loading = false;
@@ -134,7 +143,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Search — GET /admin/orders?trckngKey=...&status=PENDING ───
+  // ── Search ────────────────────────────────────────────────────
 
   private searchOrders(keyword: string): void {
     this.searchLoading = true;
@@ -264,7 +273,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   // ── Dispatch ─────────────────────────────────────────────────
 
   dispatchOrder(order: OrderSummaryDto): void {
-    if (!confirm(`Mark order #${order.orderId} as dispatched?`)) return;
+    this.pendingDispatchOrder = order;
+    this.showConfirmPopup     = true;
+  }
+
+  cancelDispatch(): void {
+    this.showConfirmPopup     = false;
+    this.pendingDispatchOrder = null;
+  }
+
+  confirmDispatch(): void {
+    const order = this.pendingDispatchOrder;
+    if (!order) return;
+    this.showConfirmPopup     = false;
+    this.pendingDispatchOrder = null;
 
     this.http.post<string>(
       `${environment.apiUrl}/admin/dispatch/${order.orderId}`, {},
@@ -276,10 +298,23 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.allOrders     = this.allOrders.filter(o => o.orderId !== order.orderId);
         this.totalElements = Math.max(0, this.totalElements - 1);
         this.applySort();
+        this.dispatchedOrderId   = order.orderId;
+        this.dispatchedOrderName = order.name;
+        this.showDispatchPopup   = true;
+        clearTimeout(this.popupTimer);
+        this.popupTimer = setTimeout(() => { this.showDispatchPopup = false; }, 3500);
       },
       error: (err) => { this.error = err.error || 'Failed to dispatch order.'; }
     });
   }
+
+  closeSuccessPopup(): void {
+    this.showDispatchPopup = false;
+    clearTimeout(this.popupTimer);
+  }
+
+  get pendingOrderId():   number { return this.pendingDispatchOrder?.orderId   ?? 0; }
+  get pendingOrderName(): string { return this.pendingDispatchOrder?.name       ?? ''; }
 
   // ── Helpers ───────────────────────────────────────────────────
 

@@ -55,10 +55,23 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
   selectedProduct: Product | null = null;
   editingProduct:  Product | null = null;
 
+  // ── Delete Confirm Popup ─────────────────────────────────────
+  showDeleteConfirm   = false;
+  private pendingDeleteId:   number  = 0;
+  private pendingDeleteName: string  = '';
+
+  get deleteProductName(): string { return this.pendingDeleteName; }
+
+  // ── Success Toast ────────────────────────────────────────────
+  showToast       = false;
+  toastTitle      = '';
+  toastSub        = '';
+  toastType: 'success' | 'delete' = 'success';
+  private toastTimer: any;
+
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    // Single search debounce — ek hi jagah se loadProducts call hoga
     this.searchSubject.pipe(
       debounceTime(500),
       distinctUntilChanged(),
@@ -75,6 +88,25 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    clearTimeout(this.toastTimer);
+  }
+
+  // ─────────────────────────────────────────────
+  // TOAST HELPER
+  // ─────────────────────────────────────────────
+
+  private showToastMsg(title: string, sub: string, type: 'success' | 'delete'): void {
+    this.toastTitle = title;
+    this.toastSub   = sub;
+    this.toastType  = type;
+    this.showToast  = true;
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => { this.showToast = false; }, 3500);
+  }
+
+  closeToast(): void {
+    this.showToast = false;
+    clearTimeout(this.toastTimer);
   }
 
   // ─────────────────────────────────────────────
@@ -115,7 +147,6 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
   }
 
   loadCategories(): void {
-    // Sirf ek baar load hogi — categories static hain
     this.http
       .get<Category[]>(`${environment.apiUrl}/categories/getAllCategories`)
       .pipe(takeUntil(this.destroy$))
@@ -129,20 +160,14 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
   // FILTER / SEARCH / SORT
   // ─────────────────────────────────────────────
 
-  /**
-   * Child se ek hi event aata hai — yahan decide hota hai
-   * search debounce se jaayega ya direct loadProducts.
-   */
   onFiltersChange(newFilters: ProductFilters): void {
     const prevQuery = this.filters.searchQuery.trim();
     const newQuery  = newFilters.searchQuery.trim();
     this.filters = { ...newFilters };
 
     if (prevQuery !== newQuery) {
-      // Typing chal rahi hai — debounce lagao, direct call mat karo
       this.searchSubject.next(newQuery);
     } else {
-      // Category / Status / Trending badla — turant load karo
       this.currentPage = 1;
       this.loadProducts();
     }
@@ -212,9 +237,12 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
     this.saving = true;
     this.error  = '';
 
+    const isEdit  = !!this.editingProduct;
+    const pName   = formData.name.trim();
+
     const payload = new FormData();
     payload.append('product', JSON.stringify({
-      name:        formData.name.trim(),
+      name:        pName,
       description: formData.description.trim(),
       categoryId:  Number(formData.categoryId),
       trending:    formData.trending,
@@ -229,11 +257,11 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
 
     data.selectedFiles.forEach(file => payload.append('images', file));
 
-    const url = this.editingProduct
-      ? `${environment.apiUrl}/admin/updateproduct/${this.editingProduct.id}`
+    const url = isEdit
+      ? `${environment.apiUrl}/admin/updateproduct/${this.editingProduct!.id}`
       : `${environment.apiUrl}/admin/addproducts`;
 
-    if (this.editingProduct) {
+    if (isEdit) {
       if (data.primaryImageId)        payload.append('primaryImageId', String(data.primaryImageId));
       if (data.deleteImageIds.length) payload.append('deleteImageIds', data.deleteImageIds.join(','));
     }
@@ -241,10 +269,19 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
     this.http.post<Product>(url, payload, { headers: this.authHeaders() })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  () => { this.saving = false; this.closeForm(); this.loadProducts(); },
+        next: () => {
+          this.saving = false;
+          this.closeForm();
+          this.loadProducts();
+          this.showToastMsg(
+            isEdit ? 'Product updated!' : 'Product added!',
+            isEdit ? `"${pName}" has been updated successfully.` : `"${pName}" is now live.`,
+            'success'
+          );
+        },
         error: (err) => {
           this.saving = false;
-          this.error  = err.error?.message || (this.editingProduct ? 'Failed to update product' : 'Failed to add product');
+          this.error  = err.error?.message || (isEdit ? 'Failed to update product' : 'Failed to add product');
         }
       });
   }
@@ -254,14 +291,34 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────
 
   deleteProduct(id: number): void {
-    if (!confirm('Delete this product? This action cannot be undone.')) return;
+    const product = this.products.find(p => p.id === id);
+    this.pendingDeleteId   = id;
+    this.pendingDeleteName = product?.name ?? 'this product';
+    this.showDeleteConfirm = true;
+  }
 
-    this.http.delete<string>(
+  cancelDelete(): void {
+    this.showDeleteConfirm = false;
+    this.pendingDeleteId   = 0;
+    this.pendingDeleteName = '';
+  }
+
+  confirmDelete(): void {
+    const id   = this.pendingDeleteId;
+    const name = this.pendingDeleteName;
+    this.showDeleteConfirm = false;
+    this.pendingDeleteId   = 0;
+    this.pendingDeleteName = '';
+
+    this.http.delete(
       `${environment.apiUrl}/admin/deleteproduct/${id}`,
-      { headers: this.authHeaders() }
+      { headers: this.authHeaders(), responseType: 'text' }
     ).pipe(takeUntil(this.destroy$))
      .subscribe({
-       next:  () => { this.loadProducts(); },
+       next: () => {
+         this.loadProducts();
+         this.showToastMsg('Product deleted', `"${name}" has been removed.`, 'delete');
+       },
        error: () => { this.error = 'Failed to delete product.'; }
      });
   }

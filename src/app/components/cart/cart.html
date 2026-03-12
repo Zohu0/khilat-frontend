@@ -33,9 +33,9 @@
 
       <!-- ✅ Inline confirm — no browser confirm() popup -->
       <div class="clear-wrap">
-        <button class="clear-btn" *ngIf="!showClearConfirm" (click)="confirmClear()">
+        <!-- <button class="clear-btn" *ngIf="!showClearConfirm" (click)="confirmClear()">
           Clear Cart
-        </button>
+        </button> -->
         <div class="clear-confirm" *ngIf="showClearConfirm">
           <span>Remove all items?</span>
           <button class="confirm-yes" (click)="doClear()">Yes, clear</button>
@@ -117,7 +117,7 @@
           </div>
 
           <!-- ✅ Cross — ek click mein seedha remove, no confirm needed -->
-          <button class="remove-btn-x"
+          <!-- <button class="remove-btn-x"
                   (click)="remove(item.cartItemId)"
                   title="Remove item">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -125,7 +125,7 @@
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
-          </button>
+          </button> -->
 
         </div>
       </div>

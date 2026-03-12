@@ -1,5 +1,5 @@
 // product-card.component.ts
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -39,13 +39,13 @@ export interface Product {
   templateUrl: './product-card.component.html',
   styleUrl: './product-card.component.css',
 })
-export class ProductCardComponent {
+export class ProductCardComponent implements OnChanges {
+
   @Input() product!: Product;
   @Input() viewMode: 'grid' | 'list' = 'grid';
   @Input() visible = false;
   @Input() animationDelay = '0s';
 
-  // Computed/passed-in display values
   @Input() productImage = '';
   @Input() isFullyOutOfStock = false;
   @Input() isNew = false;
@@ -57,9 +57,25 @@ export class ProductCardComponent {
   @Input() cartState: 'idle' | 'loading' | 'added' = 'idle';
   @Input() cartError = '';
 
-  @Output() cardClick = new EventEmitter<number>();
+  @Output() cardClick     = new EventEmitter<number>();
   @Output() variantChange = new EventEmitter<{ productId: number; size: string }>();
-  @Output() incrementQty = new EventEmitter<number>();
-  @Output() decrementQty = new EventEmitter<number>();
-  @Output() addToCart = new EventEmitter<Product>();
+  @Output() incrementQty  = new EventEmitter<number>();
+  @Output() decrementQty  = new EventEmitter<number>();
+  @Output() addToCart     = new EventEmitter<Product>();
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Auto-select first available (in-stock) variant when product loads
+    if (changes['product'] && this.product) {
+      const firstInStock = this.product.variants.find(v => v.stock > 0);
+      if (firstInStock) {
+        // Always emit on product change so parent sets initial selection
+        setTimeout(() => {
+          this.variantChange.emit({
+            productId: this.product.id,
+            size: firstInStock.size
+          });
+        }, 0);
+      }
+    }
+  }
 }

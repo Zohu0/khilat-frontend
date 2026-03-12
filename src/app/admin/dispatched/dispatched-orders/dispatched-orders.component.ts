@@ -60,7 +60,17 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
   pageNumbers:  number[] = [];
 
   copiedKey        = '';
-  deliveringId: number | null = null;   // spinner for delivering action
+  deliveringId: number | null = null;
+
+  // ── Confirm Popup ───────────────────────────────────────────
+  showConfirmPopup    = false;
+  private pendingDeliverOrder: OrderSummaryDto | null = null;
+
+  // ── Success Toast ───────────────────────────────────────────
+  showSuccessToast    = false;
+  deliveredOrderId    = 0;
+  deliveredOrderName  = '';
+  private toastTimer: any;
 
   private searchSubject = new Subject<string>();
 
@@ -83,7 +93,10 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void { this.searchSubject.complete(); }
+  ngOnDestroy(): void {
+    this.searchSubject.complete();
+    clearTimeout(this.toastTimer);
+  }
 
   // ── Normal list ──────────────────────────────────────────────
 
@@ -118,7 +131,7 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Search API — GET /admin/orders?trckngKey=...&status=DISPATCHED ──
+  // ── Search ────────────────────────────────────────────────────
 
   private searchOrders(keyword: string): void {
     this.searchLoading = true;
@@ -204,13 +217,25 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Mark as Delivered — POST /admin/delivered/{orderId} ──────
+  // ── Mark as Delivered — with custom popups ───────────────────
 
   markDelivered(event: MouseEvent, order: OrderSummaryDto): void {
     event.stopPropagation();
-    if (!confirm(`Mark order #${order.orderId} as delivered?`)) return;
+    this.pendingDeliverOrder = order;
+    this.showConfirmPopup    = true;
+  }
 
-    this.deliveringId = order.orderId;
+  cancelDeliver(): void {
+    this.showConfirmPopup    = false;
+    this.pendingDeliverOrder = null;
+  }
+
+  confirmDeliver(): void {
+    const order = this.pendingDeliverOrder;
+    if (!order) return;
+    this.showConfirmPopup    = false;
+    this.pendingDeliverOrder = null;
+    this.deliveringId        = order.orderId;
 
     this.http.post<string>(
       `${environment.apiUrl}/admin/delivered/${order.orderId}`,
@@ -220,9 +245,15 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
       next: () => {
         this.deliveringId  = null;
         this.totalElements = Math.max(0, this.totalElements - 1);
-        // Row list se hata do
-        this.allOrders  = this.allOrders.filter(o => o.orderId !== order.orderId);
-        this.pagedOrders = this.pagedOrders.filter(o => o.orderId !== order.orderId);
+        this.allOrders     = this.allOrders.filter(o => o.orderId !== order.orderId);
+        this.pagedOrders   = this.pagedOrders.filter(o => o.orderId !== order.orderId);
+
+        // Show success toast
+        this.deliveredOrderId   = order.orderId;
+        this.deliveredOrderName = order.name;
+        this.showSuccessToast   = true;
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => { this.showSuccessToast = false; }, 3500);
       },
       error: (err) => {
         this.deliveringId = null;
@@ -230,6 +261,14 @@ export class DispatchedOrdersComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  closeToast(): void {
+    this.showSuccessToast = false;
+    clearTimeout(this.toastTimer);
+  }
+
+  get pendingOrderId():   number { return this.pendingDeliverOrder?.orderId ?? 0; }
+  get pendingOrderName(): string { return this.pendingDeliverOrder?.name    ?? ''; }
 
   // ── Pagination ───────────────────────────────────────────────
 

@@ -1,6 +1,50 @@
 <!-- admin/orders/orders.component.html -->
 <div class="orders-page">
 
+  <!-- ── CONFIRM POPUP ── -->
+  <div class="mini-overlay" *ngIf="showConfirmPopup" (click)="cancelDispatch()">
+    <div class="mini-popup confirm-popup" (click)="$event.stopPropagation()">
+      <div class="mini-icon-wrap confirm-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </div>
+      <div class="mini-body">
+        <p class="mini-title">Dispatch order?</p>
+        <p class="mini-sub">#{{ pendingOrderId }} · {{ pendingOrderName }}</p>
+      </div>
+      <div class="mini-actions">
+        <button class="mini-btn mini-cancel" (click)="cancelDispatch()">Cancel</button>
+        <button class="mini-btn mini-confirm" (click)="confirmDispatch()">Dispatch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUCCESS TOAST ── -->
+  <div class="toast-wrap" *ngIf="showDispatchPopup">
+    <div class="toast-popup" (click)="closeSuccessPopup()">
+      <div class="toast-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="toast-text">
+        <span class="toast-title">Dispatched!</span>
+        <span class="toast-sub">Order #{{ dispatchedOrderId }} · {{ dispatchedOrderName }}</span>
+      </div>
+      <button class="toast-close" (click)="closeSuccessPopup()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <div class="toast-bar"></div>
+    </div>
+  </div>
+
   <!-- ── TOP BAR ── -->
   <div class="top-bar">
     <div class="top-bar-left">
@@ -40,7 +84,6 @@
 
     </div>
 
-    <!-- Pending count chip only — dispatched chip removed -->
     <div class="stat-chips">
       <div class="stat-chip" style="background:rgba(245,158,11,0.12);color:#b45309">
         <span class="chip-val">{{ pendingCount }}</span>
@@ -143,7 +186,6 @@
               </div>
             </td>
 
-            <!-- Tracking Key — click stops propagation, copy button only -->
             <td>
               <div class="tracking-cell" (click)="$event.stopPropagation()">
                 <span class="tracking-key-chip">{{ order.trckngKey || '—' }}</span>
@@ -153,14 +195,12 @@
                   [class.copied]="copiedKey === order.trckngKey"
                   (click)="copyTrackingKey($event, order.trckngKey!)"
                   title="Copy tracking key">
-                  <!-- Copy icon -->
                   <svg *ngIf="copiedKey !== order.trckngKey" width="13" height="13"
                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                        stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2"/>
                     <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                   </svg>
-                  <!-- Tick icon when copied -->
                   <svg *ngIf="copiedKey === order.trckngKey" width="13" height="13"
                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                        stroke-linecap="round" stroke-linejoin="round">
@@ -180,7 +220,6 @@
               </span>
             </td>
 
-            <!-- Date from dtOfOps number field -->
             <td class="date-cell">
               <span class="date-main">{{ formatDtOfOps(order.dtOfOps) }}</span>
               <span class="date-upd"
@@ -195,7 +234,6 @@
               </span>
             </td>
 
-            <!-- Actions — only view + dispatch, cancel removed -->
             <td>
               <div class="action-btns" (click)="$event.stopPropagation()">
                 <button class="btn-icon view"
