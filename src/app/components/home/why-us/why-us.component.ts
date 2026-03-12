@@ -24,13 +24,12 @@ export class WhyUsComponent {
         svg: this.safe(`<path d="M20 6L9 17l-5-5"/>`),
       },
       {
-        title: 'Free Delivery',
-        desc:  'Enjoy free shipping on all orders. Pan India delivery with real-time tracking.',
+        title: 'Premium Fabric',
+        desc:  'We source only the finest fabrics — soft, breathable, and built to last. Every thread tells a story of quality.',
         svg: this.safe(`
-          <rect x="1" y="3" width="15" height="13" rx="1"/>
-          <path d="M16 8h4l3 5v3h-7V8z"/>
-          <circle cx="5.5" cy="18.5" r="2.5"/>
-          <circle cx="18.5" cy="18.5" r="2.5"/>
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
         `),
       },
       {
