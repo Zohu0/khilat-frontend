@@ -127,7 +127,7 @@ export class AdminProductsComponent implements OnInit, OnDestroy {
     if (this.filters.filterStatus)        params = params.set('status',   this.filters.filterStatus);
 
     this.http
-      .get<ProductPage>(`${environment.apiUrl}/product/getallproducts`, { headers: this.authHeaders(), params })
+      .get<ProductPage>(`${environment.apiUrl}/admin/getallproducts`, { headers: this.authHeaders(), params })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
