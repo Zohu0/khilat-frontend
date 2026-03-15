@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { TrackOrderResultComponent, OrderTrackingResponse  } from './track-order-result/track-order-result.component';
+import { environment } from '../../../environments/environments';
 
 @Component({
   selector: 'app-track-order',
@@ -19,7 +20,7 @@ export class TrackOrderComponent {
   error       = '';
   orderData: OrderTrackingResponse | null = null;
 
-  private readonly API = 'http://localhost:8080/api/order/track';
+  private readonly API = `${environment.apiUrl}/order/track`;
 
   constructor(private http: HttpClient) {}
 
