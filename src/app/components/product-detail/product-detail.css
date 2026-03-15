@@ -3,8 +3,6 @@
    Palette: #FFF5E4 #FFE3E1 #FFD1D1 #FF9494
    ============================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap');
-
 :root {
   --cream:     #FFF5E4;
   --blush:     #FFE3E1;
