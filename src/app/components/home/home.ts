@@ -60,7 +60,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   whyVisible         = false;
 
   heroSlide  = 0;
-  heroSlides: { image: string; tag: string; title: string }[] = [];
+  heroSlides: { image: string; tag: string; title: string; productId?: number }[] = [];
 
   private slideInterval: any;
   private observer!: IntersectionObserver;
@@ -171,6 +171,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
             image: this.resolveImage(p)!,
             tag:   ['Trending Now', 'Bestseller', 'Popular Pick'][i] ?? 'Trending',
             title: p.name,
+            productId: p.id,
           }));
           this.startSlider();
         }

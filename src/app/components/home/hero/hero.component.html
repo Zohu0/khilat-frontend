@@ -38,7 +38,9 @@
       <div class="hero-img-ring"></div>
       <div class="hero-img-card">
         <div class="hero-slides" [style.transform]="'translateX(-' + heroSlide * 100 + '%)'">
-          <div class="hero-slide" *ngFor="let slide of heroSlides">
+          <div class="hero-slide" *ngFor="let slide of heroSlides"
+          (click)="onSlideClick(slide)"
+     style="cursor: pointer;" >
             <img [src]="slide.image" [alt]="slide.title" class="hero-img"
               onerror="this.onerror=null;this.style.display='none';this.parentElement.style.background='#FFE3E1';" />
           </div>
