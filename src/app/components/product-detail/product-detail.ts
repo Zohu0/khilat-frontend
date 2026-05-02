@@ -7,6 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService }    from '../../services/product.service';
 import { Product }           from '../../models/product.model';
 import { environment }       from '../../../environments/environments';
+import { CartService } from '../../services/cart.service';
 
 @Component({
   selector: 'app-product-detail',
@@ -55,6 +56,7 @@ export class ProductDetail implements OnInit {
     private route:          ActivatedRoute,
     private router:         Router,
     private productService: ProductService,
+    private cartService:    CartService, 
   ) {}
 
   ngOnInit(): void {
@@ -304,19 +306,36 @@ export class ProductDetail implements OnInit {
   // CART
   // ─────────────────────────────────────────────
 
-  addToCart(): void {
-    if (!this.product) return;
-    console.log('Add to cart:', {
-      productId: this.currentProductId,
-      variantId: this.selectedVariant?.id,
-      name:      this.product.name,
-      price:     this.selectedVariant?.price,
-      qty:       this.qty,
-      size:      this.selectedSize,
-    });
+  
+addToCart(): void {
+  if (!this.product || !this.selectedSize) return;
+
+  const variantId = this.selectedVariant?.id;
+  if (!variantId) return;
+
+  // Already cart mein hai → qty update karo (increment)
+  if (this.cartService.isInCart(variantId)) {
+    // qty baar baar increment karo jitni user ne select ki
+    for (let i = 0; i < this.qty; i++) {
+      this.cartService.increment(variantId);
+    }
     this.addedToCart = true;
     setTimeout(() => (this.addedToCart = false), 2500);
+    return;
   }
+
+  // Naya item — addItem() call karo with selected qty
+  this.cartService.addItem(variantId, this.qty).subscribe({
+    next: () => {
+      this.addedToCart = true;
+      setTimeout(() => (this.addedToCart = false), 2500);
+    },
+    error: () => {
+      // Optional: error toast dikha sakte ho
+      console.error('Cart mein add nahi hua');
+    }
+  });
+}
 
   // ─────────────────────────────────────────────
   // ROUTING
